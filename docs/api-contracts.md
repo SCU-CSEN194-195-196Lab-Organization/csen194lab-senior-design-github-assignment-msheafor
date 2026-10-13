@@ -1,0 +1,125 @@
+﻿# API Contracts (v0)
+
+## Shared Types
+- **Coach wire cards** (`POST /coach` → `suggestions` / `cards`): `CoachSuggestionCard`, full envelope `CoachApiSuccessBody` — `shared/types/feedback-card.js`
+- **Persisted history card** (Firestore / `POST /feedback-history`): `FeedbackCard` — same file
+- `DismissEvent`: `shared/types/dismiss-event.js`
+
+## `POST /coach` success body (feedback card output)
+
+HTTP **200** JSON matches **`CoachApiSuccessBody`** in `shared/types/feedback-card.js`.
+
+| Field | Type | Notes |
+|--------|------|--------|
+| `suggestions` | **array** | Primary list of cards (see row schema below). |
+| `cards` | **array** | Same references as `suggestions` (duplicate for older clients). |
+| `feedback` | **string** | Plain-text digest built from cards (`title`, `body`, optional `micro_edit`). |
+| `source` | **string** | e.g. `"coaching-api"`. |
+| `model` | **string \| null** | Resolved LLM model id when the LLM ran; may be null if only heuristics/dictionary fired. |
+| `userId` | **string** | Stable id used for profile and draft retrieval. |
+| `personalization` | **object** | Echo: `goals`, `audience`, `tonePreference`. |
+| `profileSnapshot` | **object \| null** | Rolling aggregate signals from `summarizeProfile`. |
+| `retrievedChunks` | **array** | RAG context chunks: `id`, `score`, `text`, `source`. |
+| `vocabulary_pairs_saved` | **number** | Placeholder counter (currently `0` from coaching-api). |
+
+### `CoachSuggestionCard` (one element of `suggestions` / `cards`)
+
+| Field | Type | Required | Notes |
+|--------|------|----------|--------|
+| `type` | **string** | yes | After guardrails, one of: `pattern`, `coherence`, `clarity`, `grammar`, `punctuation`, `voice`. |
+| `title` | **string** | yes* | *At least one of `title` or `body` must be non-empty after guardrails. |
+| `body` | **string** | yes* | Reader-facing explanation; may use markdown emphasis. |
+| `micro_edit` | **string \| null** | no | Optional short rewrite hint for one clause. |
+
+Guardrails (see `backend/coaching-api/src/coach/guardrails.js`): drop malformed cards, unknown `type`, cards whose quoted phrases are not found in the user text, and cap length (default **10**).
+
+### Example (truncated)
+
+`cards` in production is the same content as `suggestions` (same array serialized twice).
+
+```json
+{
+  "suggestions": [
+    {
+      "type": "clarity",
+      "title": "Tighten the lead sentence",
+      "body": "Readers decide fast—your first line can state the stake in fewer words.",
+      "micro_edit": null
+    }
+  ],
+  "cards": [
+    {
+      "type": "clarity",
+      "title": "Tighten the lead sentence",
+      "body": "Readers decide fast—your first line can state the stake in fewer words.",
+      "micro_edit": null
+    }
+  ],
+  "feedback": "1. Tighten the lead sentence\nReaders decide fast…",
+  "source": "coaching-api",
+  "model": "gpt-4o-mini",
+  "userId": "abc123",
+  "personalization": { "goals": "", "audience": "", "tonePreference": "neutral" },
+  "profileSnapshot": { "requests": 3, "avgSentenceLength": 18.2 },
+  "retrievedChunks": [{ "id": "guide.md#0", "score": 0.42, "text": "…", "source": "guide.md" }],
+  "vocabulary_pairs_saved": 0
+}
+```
+
+## Coaching API (`http://localhost:8787`)
+Node service for RAG/LLM coaching. Intended to sit **behind** app-api in production (not called directly by browsers). **`GET /`** and **`GET /health`** are public (landing HTML and liveness). All other routes require header **`X-Coaching-Internal-Secret`** matching env **`COACHING_INTERNAL_SECRET`** (same value as app-api). The process listens on **`127.0.0.1`** by default; set **`COACHING_LISTEN_HOST`** only if you need a non-default bind (uncommon—keep the internal secret strong). **`POST /coach`** and **`POST /dismiss`** are additionally **rate limited** per client IP + JSON `userId` (defaults **`COACHING_COACH_RATE_PER_MINUTE`** = 25, **`COACHING_DISMISS_RATE_PER_MINUTE`** = 120).
+
+- `POST /coach` — JSON body: see `backend/coaching-api/src/coach/run-coach.js`. Required: `text` (unless MCP mode fills it), **`userId`** (non-empty, not `anonymous`; app-api overwrites from auth). Optional: `surface`, `focus` (string[]), **`goals`** (string, trimmed to 300 chars), **`audience`** (string, 200), **`tonePreference`** (`"formal"` | `"neutral"` | `"casual"`; invalid values → `neutral`). **MCP / Google Docs:** with `use_mcp: true` and `doc_id`, `text` may be empty; coaching-api loads content using `GOOGLE_DOCS_ACCESS_TOKEN` or `GOOGLE_DOCS_MCP_BRIDGE_URL` (see `docs/mcp-google-cloud-testing.md`). Per-user prior drafts are retrieved from the server-side profile store (rolling history) and merged into RAG context when available.
+- `POST /dismiss` — JSON body includes `userId` and dismiss payload; updates coaching profile store.
+- **Profile data** is read and updated only inside `POST /coach` / `POST /dismiss` (no `GET /profile/:userId` HTTP surface).
+- `GET /health` — **Liveness only:** `{"ok":true}` (**no** internal secret header).
+- `GET /internal/diagnostics` — **Operators:** same secret header; returns LLM/RAG/MCP booleans and config (what `/health` used to expose).
+
+## App API (`http://localhost:5050`)
+### Auth and user data
+- `GET /auth/client-config` — **Public.** Returns Firebase web SDK config (`firebase` object) from `FIREBASE_WEB_*` env vars on app-api so the extension can align with the same project as the webapp.
+- `POST /auth/google` — **No legacy OAuth.** JSON body `{ "idToken": "<Firebase ID token>" }`; verifies token and returns `{ ok, uid, email, name }` (same verification as protected routes).
+- `GET /auth/google/callback` — **Not used** (404 + message); clients use Firebase Auth instead of a server OAuth redirect.
+- `GET /users/me`
+- `POST /onboarding` — **Authenticated.** JSON body may include `writingSample` (string), `goals`, `experienceLevel`; merges into Firestore `users/{uid}` (`onboardingComplete`, `onboardingAt`, etc.).
+- `GET /feedback-history?docId=<id>`
+- `POST /feedback-history`
+- `POST /dismissals` — **Authenticated.** JSON: `cardId` (required), optional `category`, `reason`, `sources` (array); appends a row in Firestore `dismissals` (complements coaching-api profile dismiss).
+- `GET /preferences`
+- `PUT /preferences`
+
+### Documents (web editor; authenticated)
+Firestore when Firebase is configured; JSON file store when **`APP_LOCAL_DEV_STORE=1`** (typical local dev with `apply_dev_defaults()`).
+
+- `GET /documents` — list current user's drafts (`id`, `title`, `updatedAt`).
+- `POST /documents` — create draft; optional JSON `{ "title": "..." }`.
+- `GET /documents/<docId>` — full draft (`id`, `title`, `content`, timestamps).
+- `PUT /documents/<docId>` — update `title` and/or `content`.
+
+Webapp dev calls these as **`/api/documents`** (Vite strips the `/api` prefix before forwarding to app-api).
+
+### Coach proxy (authenticated → coaching-api)
+These routes require a **Firebase ID token** (`Authorization: Bearer <id_token>`), unless app-api is running in the documented dev-only bypass (`APP_AUTH_BYPASS` + `APP_ENV` — see root `.env.example`).
+
+- `POST /coach` — Accepts the same JSON fields clients would send to coaching-api `POST /coach`. **`userId` in the body is ignored for authorization**: app-api **overwrites** `userId` with the verified uid before forwarding. **Rate limited** per verified user (default **20/min**, env **`APP_COACH_RATE_LIMIT`**); over limit → **429** JSON `error: "rate_limited"`.
+- `POST /dismiss` — Same auth and **`userId` overwrite**; forwards to coaching-api `POST /dismiss`. **Rate limited** per user (default **60/min**, **`APP_DISMISS_RATE_LIMIT`**).
+
+## App API → Coaching API (server-to-server)
+- Base URL: **`COACHING_API_BASE_URL`** on app-api (default `http://127.0.0.1:8787`; see root `.env.example` and `backend/app-api/.env.example`).
+- **`X-Coaching-Internal-Secret`**: app-api sends **`COACHING_INTERNAL_SECRET`** on every upstream `POST`; coaching-api rejects requests without a matching value.
+- Method: **`POST`** to `/coach` or `/dismiss` with `Content-Type: application/json`, `Accept: application/json`.
+- **`X-Request-Id`**: forwarded from the client request when present; otherwise app-api generates one for the upstream call. Coaching-api threads this into opt-in **`COACH_LOG_LLM`** stderr JSON (`requestId` field) so logs align with app-api **`APP_COACH_PROXY_LOG`** lines (`[coach-proxy]` / `[coach-llm]`); see `backend/app-api/README.md`.
+- Response: app-api returns coaching-api’s JSON body and HTTP status when the upstream response is JSON; network/timeout/non-JSON failures map to app-api errors (`coaching_upstream`, `coaching_timeout`, `coaching_bad_response`).
+
+## Clients (webapp, extension)
+
+### swe-test reference vs this repo
+The **`swe-test`** prototype webapp calls **coaching-api directly** (`VITE_COACHING_API_URL` + `POST /api/coaching-feedback`, no Firebase). This repo keeps the browser on **app-api** only: Firebase Bearer (or dev `X-Debug-User`), then app-api proxies to coaching-api with **`X-Coaching-Internal-Secret`**. The web **Write** editor matches the Chris prototype flow (`/api/documents` + debounced `POST /coach` with `coachMode`).
+
+| Environment | Webapp API base | Auth | Coaching path |
+|-------------|-----------------|------|----------------|
+| **Local dev** | Same origin (Vite proxy → `127.0.0.1:5050`) | `VITE_FIREBASE_*` sign-in, or `VITE_DEBUG_APP_USER` when `APP_AUTH_BYPASS=1` | `POST /coach` → app-api → `127.0.0.1:8787` |
+| **Production** | `VITE_APP_API_BASE_URL` (deployed app-api) | Firebase only (`APP_AUTH_BYPASS` off) | Same proxy; set `WEBAPP_BASE_URL` / CORS on app-api |
+
+- Call **app-api** `POST /coach` and `POST /dismiss` only, not coaching-api directly, so `userId` cannot be spoofed and a single auth layer applies.
+- **`GET /auth/client-config`** (no auth): Firebase web SDK fields for aligning the extension with the same Firebase project (requires **`FIREBASE_WEB_*`** on app-api; mirror `VITE_FIREBASE_*` from the webapp).
