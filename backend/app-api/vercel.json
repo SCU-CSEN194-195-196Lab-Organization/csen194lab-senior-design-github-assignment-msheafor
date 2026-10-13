@@ -1,0 +1,8 @@
+{
+  "installCommand": "pip install -r requirements.txt",
+  "buildCommand": "mkdir -p public",
+  "outputDirectory": "public",
+  "rewrites": [
+    { "source": "/(.*)", "destination": "/api/index" }
+  ]
+}

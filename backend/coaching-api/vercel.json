@@ -1,0 +1,10 @@
+{
+  "installCommand": "npm ci",
+  "buildCommand": "",
+  "functions": {
+    "api/index.js": {
+      "includeFiles": "knowledge/**"
+    }
+  },
+  "rewrites": [{ "source": "/(.*)", "destination": "/api/index" }]
+}
