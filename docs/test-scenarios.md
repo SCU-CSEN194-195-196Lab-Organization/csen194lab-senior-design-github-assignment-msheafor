@@ -1,3 +1,0 @@
-﻿# Test Scenarios
-
-Owner: Miranda
