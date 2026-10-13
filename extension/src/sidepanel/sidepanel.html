@@ -1,0 +1,117 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Write Up</title>
+  <link rel="stylesheet" href="sidepanel.css" />
+</head>
+<body>
+  <div class="root">
+    <header class="sp-header">
+      <div class="sp-header-text">
+        <strong>Write Up</strong>
+      </div>
+      <div class="live-docs-head">
+        <label class="live-docs-toggle">
+          <input type="checkbox" id="docs-live-enabled" />
+          <span>Live in Google Docs</span>
+        </label>
+        <label class="live-docs-toggle live-docs-toggle-sub">
+          <input type="checkbox" id="docs-live-use-mcp" />
+          <span>Fetch text via Docs API / MCP</span>
+        </label>
+      </div>
+      <p class="sp-auth-strip">
+        <a
+          id="ext-signin-link"
+          class="sp-auth-link"
+          href="http://127.0.0.1:5173/extension-auth"
+          target="_blank"
+          rel="noopener noreferrer"
+        >Sign in (web)</a>
+        <button type="button" class="sp-auth-link sp-auth-btn" id="ext-signout-btn">Clear token</button>
+      </p>
+      <a
+        id="home-link"
+        class="home-btn"
+        href="http://127.0.0.1:5050/"
+        target="_blank"
+        rel="noopener noreferrer"
+        title="Open Write Up landing page"
+        aria-label="Open landing page (home)"
+      >
+        <svg class="home-icon" width="20" height="20" viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+          <path
+            fill="currentColor"
+            d="M10 20v-6h4v6h5v-8h3L12 3 2 12h3v8h5z"
+          />
+        </svg>
+      </a>
+    </header>
+
+    <div class="tabbar" role="tablist" aria-label="Write Up sidebar views">
+      <button type="button" class="tab is-active" id="tab-feedback" role="tab" aria-selected="true" aria-controls="panel-feedback">
+        Feedback
+      </button>
+      <button type="button" class="tab" id="tab-wordbank" role="tab" aria-selected="false" aria-controls="panel-wordbank">
+        Word Bank
+      </button>
+    </div>
+
+    <section class="tab-panel is-active" id="panel-feedback" role="tabpanel" aria-labelledby="tab-feedback">
+      <section class="live-docs" aria-label="Google Docs live feedback">
+        
+        <p class="hint">
+          <strong>Auth.</strong> <code>POST /coach</code> needs a Firebase ID token unless app-api is started with
+          <code>APP_ENV=dev</code> and <code>APP_AUTH_BYPASS=1</code> in your <code>.env</code> (then the extension sends <code>X-Debug-User</code>).
+          If you see <code>missing_token</code>, add that bypass for local dev or use <strong>Sign in (web)</strong> and keep a token.
+        </p>
+        <p class="hint">
+          <strong>MCP (experimental).</strong> Docs text is loaded by <strong>coaching-api</strong> using <code>GOOGLE_DOCS_ACCESS_TOKEN</code> or <code>GOOGLE_DOCS_MCP_BRIDGE_URL</code>.
+          A sample HTTP bridge is <code>prototypes/ishika/server</code> (<code>POST /api/mcp/call</code> on that server), not on the main app-api at port 5050.
+        </p>
+        <p class="status" id="app-api-link-status" aria-live="polite"></p>
+        <p class="status" id="docs-live-status" aria-live="polite"></p>
+        <pre id="docs-live-output" class="live-docs-output">Enable live mode, then type in a Google Doc.</pre>
+      </section>
+
+      <div>
+        <p class="sp-label-space"></p>
+        <label class="sp-label" for="draft">Your text</label>
+        <textarea id="draft" placeholder="Paste a paragraph from this page or your draft…" spellcheck="true"></textarea>
+      </div>
+
+      <div class="focus-row" role="group" aria-labelledby="focus-legend">
+        <span id="focus-legend" class="visually-hidden">Focus</span>
+        <label><input type="checkbox" name="focus" value="vocabulary" checked /> Vocabulary</label>
+        <label><input type="checkbox" name="focus" value="tone" checked /> Tone</label>
+        <label><input type="checkbox" name="focus" value="clarity" /> Clarity</label>
+      </div>
+
+      <button type="button" class="btn-primary" id="submit-btn">Get feedback</button>
+      <p class="status" id="status-line" aria-live="polite"></p>
+
+      <div class="out-wrap">
+        <div class="out-head">Feedback</div>
+        <pre id="output" class="output-placeholder">Coach feedback will show here after you click Get feedback (local app-api + coaching-api).</pre>
+      </div>
+    </section>
+
+    <section class="tab-panel" id="panel-wordbank" role="tabpanel" aria-labelledby="tab-wordbank" hidden>
+      <section class="wordbank" aria-label="Suggested words from earlier feedback">
+        <div class="wordbank-head">
+          <span>Suggested words you can use today</span>
+        </div>
+        <div id="wordbank-list" class="wordbank-list">
+          <p class="wordbank-empty">No saved words yet.</p>
+        </div>
+      </section>
+    </section>
+  </div>
+  <script src="../lib/api-headers.js"></script>
+  <script src="../lib/coach-defaults.js"></script>
+  <script src="persist-feedback.js"></script>
+  <script src="sidepanel.js"></script>
+</body>
+</html>
