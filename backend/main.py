@@ -56,4 +56,5 @@ def root():
 
 @app.get("/health")
 def health():
-    return {"ok": True, "service": "fastapi-api"}
+    from coaching.mechanics_client import mechanics_health
+    return {"ok": True, "service": "fastapi-api", **mechanics_health()}
