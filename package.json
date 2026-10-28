@@ -6,9 +6,8 @@
     "dev:web": "npm --prefix webapp run dev",
     "dev:ext": "echo \"Load extension/ as unpacked at chrome://extensions/\"",
     "dev:api": "cd backend/fastapi-api && uvicorn main:app --reload --port 8000",
-    "dev:mechanics": "npm --prefix backend/coaching-api run dev",
-    "dev:all": "concurrently -n MECHANICS,API,WEB -c blue,green,magenta \"npm:dev:mechanics\" \"npm:dev:api\" \"npm:dev:web\"",
-    "install:all": "npm install && npm --prefix webapp install && npm --prefix backend/coaching-api install && pip install -r backend/fastapi-api/requirements.txt"
+    "dev:all": "concurrently -n API,WEB -c green,magenta \"npm:dev:api\" \"npm:dev:web\"",
+    "install:all": "npm install && npm --prefix webapp install && pip install -r backend/fastapi-api/requirements.txt"
   },
   "devDependencies": {
     "concurrently": "^9.0.1"
