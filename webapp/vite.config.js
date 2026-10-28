@@ -7,19 +7,19 @@ export default defineConfig({
     port: 5173,
     proxy: {
       "/api": {
-        target: "http://127.0.0.1:5050",
+        target: "http://127.0.0.1:8000",
         changeOrigin: true,
       },
       "/coach": {
-        target: "http://127.0.0.1:5050",
+        target: "http://127.0.0.1:8000",
         changeOrigin: true
       },
       "/dismiss": {
-        target: "http://127.0.0.1:5050",
+        target: "http://127.0.0.1:8000",
         changeOrigin: true
       },
       "/auth": {
-        target: "http://127.0.0.1:5050",
+        target: "http://127.0.0.1:8000",
         changeOrigin: true
       }
     }

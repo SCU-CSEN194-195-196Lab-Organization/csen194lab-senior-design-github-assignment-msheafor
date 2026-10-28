@@ -1,59 +1,45 @@
 ﻿import "./load-env.js";
 import express from "express";
-import { loadKnowledge } from "./rag/index.js";
-import { applyDismiss } from "./profile/index.js";
-import { runCoach } from "./coach/run-coach.js";
 import { isSpellcheckerReady } from "./coach/heuristics.js";
+import { finalizeMechanicsSuggestions } from "./coach/mechanics-pipeline.js";
 import {
   assertCoachingInternalSecretConfigured,
   requireCoachingInternalSecret,
 } from "./middleware/internal-secret.js";
+
+const PAUSED_DET_MAX = 80;
+const TYPING_DET_MAX = 30;
 
 const internalSecret = assertCoachingInternalSecretConfigured();
 
 const app = express();
 app.use(express.json({ limit: "512kb" }));
 
-app.get("/", (_req, res) => res.json({ ok: true, service: "coaching-api" }));
+app.get("/", (_req, res) => res.json({ ok: true, service: "mechanics-api" }));
 app.get("/health", (_req, res) =>
-  res.json({
-    ok: true,
-    service: "coaching-api",
-    spellchecker: isSpellcheckerReady(),
-  }),
+  res.json({ ok: true, service: "mechanics-api", spellchecker: isSpellcheckerReady() }),
 );
 
 app.use(requireCoachingInternalSecret(internalSecret));
 
-app.post("/coach", async (req, res) => {
+app.post("/mechanics", (req, res) => {
   try {
-    const requestId = String(req.headers["x-request-id"] || "").trim() || undefined;
-    const result = await runCoach(req.body || {}, { requestId });
-    if (result.error) {
-      return res.status(result.status || 400).json({ error: result.error });
+    const { text, coachMode } = req.body || {};
+    if (!text || typeof text !== "string") {
+      return res.status(400).json({ error: "Missing text" });
     }
-    res.json(result.payload);
+    const mode = coachMode === "typing" ? "typing" : "paused";
+    const cap = mode === "paused" ? PAUSED_DET_MAX : TYPING_DET_MAX;
+    const suggestions = finalizeMechanicsSuggestions(text.trim().slice(0, 12000), mode, cap);
+    res.json({ suggestions });
   } catch (e) {
-    console.error(e);
+    console.error("[mechanics-api] error:", e);
     res.status(500).json({ error: "Server error" });
   }
 });
 
-app.post("/dismiss", async (req, res) => {
-  try {
-    const { userId = "anonymous", ...rest } = req.body || {};
-    const profileSnapshot = await applyDismiss(userId, rest);
-    res.json({ ok: true, profileSnapshot });
-  } catch (e) {
-    console.error(e);
-    res.status(500).json({ ok: false, error: "Server error" });
-  }
-});
-
-await loadKnowledge().catch((e) => console.error("Failed to load RAG corpus:", e));
-
 app.listen(8787, "127.0.0.1", () => {
   console.log(
-    `[coaching-api] listening on http://127.0.0.1:8787 spellchecker=${isSpellcheckerReady()}`,
+    `[mechanics-api] listening on http://127.0.0.1:8787 spellchecker=${isSpellcheckerReady()}`,
   );
 });
