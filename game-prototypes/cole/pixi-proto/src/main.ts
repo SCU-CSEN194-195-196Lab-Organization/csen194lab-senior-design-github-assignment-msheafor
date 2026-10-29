@@ -6,6 +6,57 @@ import { Application, Assets, Sprite, Graphics, Text } from "pixi.js";
   await app.init({ background: "#0d117b", resizeTo: window });
   document.getElementById("pixi-container")!.appendChild(app.canvas);
 
+  const lbackground1 = await Assets.load("/assets/background.png");
+  const lsprite1 = await Assets.load("/assets/sprite1.png");
+  //const lsprite2 = await Assets.load("/assets/sprite2.png");
+  const ltextbox1 = await Assets.load("/assets/textbox1.png");
+  //const ltextbox2 = await Assets.load("/assets/textbox2.png");
+
+  const background1 = new Sprite(lbackground1);
+  const sprite1 = new Sprite(lsprite1);
+  //const sprite2 = new Sprite(lsprite2);
+  const textbox1 = new Sprite(ltextbox1);
+  //const textbox2 = new Sprite(ltextbox2);
+
+  background1.position.set(0, 0);
+  background1.height = app.screen.height;
+  background1.width = app.screen.width;
+  app.stage.addChild(background1);
+
+  sprite1.height = app.screen.height / 1.1;
+  sprite1.width = app.screen.width / 3;
+  sprite1.position.set(app.screen.width/2 - sprite1.width/2, app.screen.height - sprite1.height);
+  app.stage.addChild(sprite1);
+
+  textbox1.height = app.screen.height / 3;
+  textbox1.width = app.screen.width / 1.1;
+  textbox1.position.set(app.screen.width/2 - textbox1.width/2, app.screen.height / 1 - textbox1.height);
+  app.stage.addChild(textbox1);
+
+  const text25 = new Text({
+    text: "I'm working on it, okay?",
+    style: {
+      fontSize: 24,
+      fill: "#000000",
+      fontFamily: "Arial",
+    },
+  });
+
+  text25.position.set(app.screen.width/2 - text25.width/2, app.screen.height - 150);
+  app.stage.addChild(text25);
+
+  const text26 = new Text({
+    text: "This is why it's a prototype",
+    style: {
+      fontSize: 24,
+      fill: "#000000",
+      fontFamily: "Arial",
+    },
+  });
+
+  text26.position.set(app.screen.width/2 - text26.width/2, app.screen.height - 125);
+  app.stage.addChild(text26);
+
   // Load the bunny texture
   const texture = await Assets.load("/assets/bunny.png");
   const bunny = new Sprite(texture);
@@ -19,7 +70,7 @@ import { Application, Assets, Sprite, Graphics, Text } from "pixi.js";
   box.roundRect(0, 0, 800, 300, 15);
   box.fill("#e8eef5");
   box.position.set(20, 20);
-  app.stage.addChild(box);
+  //app.stage.addChild(box);
 
   const text = new Text({
     text: "This would be the NPC text where you would correct the grammar",
@@ -31,7 +82,7 @@ import { Application, Assets, Sprite, Graphics, Text } from "pixi.js";
   });
 
   text.position.set(35, 35);
-  app.stage.addChild(text);
+  //app.stage.addChild(text);
 
   // BUTTON
   const button = new Graphics();
