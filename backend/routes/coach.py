@@ -10,7 +10,7 @@ from pydantic import BaseModel
 
 from auth import CurrentUser, get_current_user
 from coaching.pipeline import run_coach
-from profile.analyzer import apply_dismiss
+from user_profile.analyzer import apply_dismiss
 from routes.feedback_history import build_feedback_preferences
 
 log = logging.getLogger(__name__)

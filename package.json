@@ -5,9 +5,9 @@
   "scripts": {
     "dev:web": "npm --prefix webapp run dev",
     "dev:ext": "echo \"Load extension/ as unpacked at chrome://extensions/\"",
-    "dev:api": "cd backend/fastapi-api && uvicorn main:app --reload --port 8000",
+    "dev:api": "cd backend && uvicorn main:app --reload --port 8000",
     "dev:all": "concurrently -n API,WEB -c green,magenta \"npm:dev:api\" \"npm:dev:web\"",
-    "install:all": "npm install && npm --prefix webapp install && pip install -r backend/fastapi-api/requirements.txt"
+    "install:all": "npm install && npm --prefix webapp install && pip install -r backend/requirements.txt"
   },
   "devDependencies": {
     "concurrently": "^9.0.1"

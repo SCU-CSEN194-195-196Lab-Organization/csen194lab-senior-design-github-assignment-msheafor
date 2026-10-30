@@ -7,7 +7,7 @@ from coaching.format import suggestions_to_feedback
 from coaching.mechanics_client import get_mechanics_suggestions
 from coaching.merge import merge_deterministic_and_coaching
 from llm.client import coach_with_llm, resolve_llm_attempts
-from profile.analyzer import (
+from user_profile.analyzer import (
     analyze_writing_signals,
     append_profile,
     append_user_draft,

@@ -5,7 +5,7 @@ import re
 from pathlib import Path
 
 from rag.embedder import embed
-from rag.vectordb import collection_count, upsert_chunks
+from rag.vectordb import collection_count, init_chroma, upsert_chunks
 
 log = logging.getLogger(__name__)
 
@@ -65,6 +65,7 @@ def _load_chunks() -> list[tuple[str, str, dict]]:
 
 async def ensure_ingested() -> None:
     """Ingest knowledge base into Chroma on startup. No-op if already populated."""
+    await init_chroma()
     count = collection_count()
     if count > 0:
         log.info("Chroma already has %d chunks — skipping ingest", count)
