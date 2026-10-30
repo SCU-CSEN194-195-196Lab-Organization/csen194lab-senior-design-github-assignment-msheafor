@@ -2,14 +2,36 @@
 import { Application, Assets, Sprite, Graphics, Text } from "pixi.js";
 
 const init_text = [
-  "This is the first box.",
-  "Woah it made it to the second box",
-  "Well now you're never going to believe this",
+  "Welcome detective!",
+  "It is so nice to have you on the case...",
+  "My name is uh shoot what's a good name... Taylor Swift",
+  "Yeah yeah we'll go with Taylor Swift",
+  "Detective, we need you on this case. Someone uh stole something at the library. Yeah, some real fucked up shit. I need this line to be really long to test if text wraps la la la la la la la la la la la ok that's probably long enough",
+  "Look we are way overqualified for this but bear with me",
+  "Legally, I have to say this next part",
+  "'Don't worry detective! Despite this troubling case, you out of anyone can do it!'",
+  "'I'll be here with you all the way!'",
+  "'If you're ever stuck, you can go into your menu with the [ESCAPE] button.",
+  "'Click the help button, and I'll be right over to offer some advice.'",
+  "'Try it out now!'",
+  "Did you do it yet?",
+  "Yeah Cole hasn't added in that functionality yet... Look, he barely understands TypeScript as it is, give him a break.",
+  "Ok I've got one more line",
+  "'Good luck out there detective! The case is in your hands!'",
+  "We're done.",
+  "I'm gonna go to Chipotle, want anything?",
+  "Nah they don't have that anymore.",
+  "They don't have that either",
+  "Right?",
+  "Lowkey it's been falling off",
+  "Uh huh",
+  "Awesome I'll be right back, see you inside",
+  "[END OF CONVERSATION]",
 ];
 
 let init_index = 0;
 let menu_flag = 0;
-let sprite_flag = 0;
+let isAnimating = false;
 
 function makeSprite(
   spr: Sprite,
@@ -86,7 +108,7 @@ function setText(
 
 (async () => {
   const app = new Application();
-  await app.init({ background: "#0d117b", resizeTo: window });
+  await app.init({ background: "#000000", resizeTo: window });
   document.getElementById("pixi-container")!.appendChild(app.canvas);
 
   // GLOBALS KINDA
@@ -139,6 +161,7 @@ function setText(
   menu_resume.visible = false;
   const resume_text = createText(app, "Resume", "PixelFont", 24, WIDTH/2, 0.185 * HEIGHT, 0.7 * WIDTH, 1);
   resume_text.visible = false;
+  
   makeSprite(menu_help, 0.25 * WIDTH, 0.325 * HEIGHT, 0.5 * WIDTH, 0.15 * HEIGHT);
   app.stage.addChild(menu_help);
   menu_help.eventMode = "static";
@@ -146,6 +169,7 @@ function setText(
   menu_help.visible = false;
   const help_text = createText(app, "Help", "PixelFont", 24, WIDTH/2, 0.385 * HEIGHT, 0.7 * WIDTH, 1);
   help_text.visible = false;
+
   makeSprite(menu_settings, 0.25 * WIDTH, 0.525 * HEIGHT, 0.5 * WIDTH, 0.15 * HEIGHT);
   app.stage.addChild(menu_settings);
   menu_settings.eventMode = "static";
@@ -153,6 +177,7 @@ function setText(
   menu_settings.visible = false;
   const settings_text = createText(app, "Settings", "PixelFont", 24, WIDTH/2, 0.585 * HEIGHT, 0.7 * WIDTH, 1);
   settings_text.visible = false;
+
   makeSprite(menu_exit, 0.25 * WIDTH, 0.725 * HEIGHT, 0.5 * WIDTH, 0.15 * HEIGHT);
   app.stage.addChild(menu_exit);
   menu_exit.eventMode = "static";
@@ -163,25 +188,36 @@ function setText(
 
 
 
+  // ** ACTION LISTENERS BELOW ** //
+
 
 
   //  DIALOGUE ACTION LISTENERS
   function advanceDialogue() {
+    if (isAnimating) return;
+    if (init_index >= init_text.length - 1) return;
+    
+    isAnimating = true;
     init_index++;
+    if (init_index < init_text.length) setText(dialogue, init_text[init_index], WIDTH / 2);
 
-    if (sprite_flag === 0)  {
-      sprite1.texture = t_sprite2;
-      sprite_flag = 1;
-    } else { 
-      sprite1.texture = t_sprite1;
-      sprite_flag = 0;
-    }
+    const duration = 800 + (init_text[init_index].length * 25);      // in ms
+    const switchSpeed = 120;
+    let elapsed = 0;
+    let useAlt = false;
 
-    if (init_index < init_text.length) {
-      setText(dialogue, init_text[init_index], WIDTH / 2);
-    } else {
-      setText(dialogue, "(End of conversation)", WIDTH / 2);
-    }
+    const animInterval = setInterval(() => {
+      elapsed += switchSpeed;
+      useAlt = !useAlt;
+
+      sprite1.texture = useAlt ? t_sprite2 : t_sprite1;
+
+      if (elapsed >= duration) {
+        clearInterval(animInterval);
+        sprite1.texture = t_sprite1; 
+        isAnimating = false; 
+      }
+    }, switchSpeed);
   }
 
   textbox2.addEventListener("pointerdown", () => {
@@ -241,36 +277,3 @@ function setText(
   });
 })();
 
-/*
-  
-
-  
-  
-  
-  
-  
-  
- 
-
-  // Load the bunny texture
-  const texture = await Assets.load("/assets/bunny.png");
-  const bunny = new Sprite(texture);
-  bunny.anchor.set(0);
-  bunny.position.set(app.screen.width - 60, app.screen.height - 60);
-  app.stage.addChild(bunny);
-
-  // Listen for animate update
-  app.ticker.add((time) => {
-    // Just for fun, let's rotate mr rabbit a little.
-    // * Delta is 1 if running at 100% performance *
-    // * Creates frame-independent transformation *
-    bunny.rotation += 0.3 * time.deltaTime;
-  });
-
-GOALS:
-  - Allow text to wrap X
-  - Be able to load the next bit of text X
-  - Have a pop up menu
-  - Make the sprite change between sprites
-  - Menu buttons have functionality
-*/
