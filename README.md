@@ -1,4 +1,4 @@
-﻿# Write Up
+# Write Up
 
 **Learning-first writing coach** — paste a draft, pause for coaching, and get mechanics plus higher-level feedback without losing your voice.
 
@@ -13,35 +13,57 @@
 
 ## Run locally
 
+**1. Install dependencies**
 ```bash
 npm run install:all
-# Configure .env from .env.example, backend/app-api/.env.example, backend/coaching-api/.env.example, webapp/.env.example
-npm run dev:all   # coaching-api :8787, app-api :5050, webapp :5173
 ```
 
-See [`backend/app-api/README.md`](backend/app-api/README.md) and [`backend/coaching-api/.env.example`](backend/coaching-api/.env.example) for secrets (`COACHING_INTERNAL_SECRET` must match on both APIs).
+**2. Configure environment**
+
+Copy the backend template and fill in your secrets:
+```bash
+cp backend/.env.example backend/.env
+```
+
+Create `webapp/.env` with your Firebase web app config (find these in the Firebase console under Project Settings → Your apps):
+```
+VITE_FIREBASE_API_KEY=
+VITE_FIREBASE_AUTH_DOMAIN=
+VITE_FIREBASE_PROJECT_ID=
+VITE_FIREBASE_STORAGE_BUCKET=
+VITE_FIREBASE_MESSAGING_SENDER_ID=
+VITE_FIREBASE_APP_ID=
+VITE_FIREBASE_MEASUREMENT_ID=
+```
+
+**3. Start**
+```bash
+npm run dev:all      # API :8000 + webapp :5173
+npm run dev:api      # API only
+npm run dev:web      # webapp only
+npm run dev:ext      # Chrome extension — follow the printed instructions
+```
+
+**First run:** startup takes ~60s while the embedding model downloads from HuggingFace. It's cached after that.
+
+**Verify the API is up:** `http://localhost:8000/health` → `{"ok":true,"spellchecker":true}`
 
 ---
 
 ## Repository layout
 
-Product scaffold aligned to C4 Option B (`docs/architecture.md`):
-- `backend/app-api` (Flask + Firebase integration)
-- `backend/coaching-api` (Express + RAG + LLM)
-- `extension` (Ishika-based Chrome MV3 UI)
-- `webapp` (React + Vite for Cole)
-- `shared` (contracts and design tokens for Miranda)
+```
+backend/      FastAPI (Python) — auth, RAG, LLM coaching, mechanics engine
+webapp/       React + Vite — web app UI
+extension/    Chrome MV3 extension
+shared/       Contracts and design tokens
+game-prototypes/  Per-person Grammeia game prototypes
+docs/         Architecture and product docs
+```
 
 Ownership:
-- Miranda: user stories and mockups, plus integration flow between `extension/` and `webapp/` (`docs/`, `shared/`)
-- Cole: web app visuals and UI (`webapp/`)
-- Ishika: extension visuals and UI (`extension/`)
-- Catherine: database setup, management, and integration (`backend/app-api/`)
-- Chris: RAG management, training, and integration (`backend/coaching-api/`)
-
-Environment templates:
-- Global shared template: `.env.example`
-- App API template: `backend/app-api/.env.example`
-- Coaching API template: `backend/coaching-api/.env.example`
-- Web app template: `webapp/.env.example`
-- Extension template: `extension/.env.example`
+- Miranda: user stories, mockups, integration flow (`docs/`, `shared/`)
+- Cole: web app UI (`webapp/`)
+- Ishika: extension UI (`extension/`)
+- Catherine: database and Firestore integration (`backend/firebase/`, `backend/routes/`)
+- Chris: RAG, LLM coaching, mechanics engine (`backend/`)
