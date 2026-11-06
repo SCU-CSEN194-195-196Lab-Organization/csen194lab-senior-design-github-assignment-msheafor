@@ -13,7 +13,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from rag.ingest import ensure_ingested
-from routes import coach, dismissals, documents, feedback_history, onboarding, preferences, users
+from routes import coach, dismissals, documents, feedback_history, onboarding, preferences, users, game
 
 logging.basicConfig(level=logging.INFO)
 
@@ -47,6 +47,7 @@ app.include_router(preferences.router, prefix="/api")
 app.include_router(feedback_history.router, prefix="/api")
 app.include_router(documents.router, prefix="/api")
 app.include_router(coach.router)
+app.include_router(game.router)
 
 
 @app.get("/")

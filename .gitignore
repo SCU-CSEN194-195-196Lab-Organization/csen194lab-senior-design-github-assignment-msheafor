@@ -12,6 +12,7 @@ build/
 .env
 .env.local
 .env.*.local
+.venv/
 
 # Backend generated data
 backend/chroma_db/

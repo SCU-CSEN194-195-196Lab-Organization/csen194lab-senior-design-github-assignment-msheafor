@@ -1,0 +1,1 @@
+"""Game-side helpers (hint bank, later the answer key for /game/validate)."""
