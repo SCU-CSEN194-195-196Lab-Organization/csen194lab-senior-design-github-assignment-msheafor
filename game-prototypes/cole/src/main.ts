@@ -1,5 +1,6 @@
 /* eslint-disable prettier/prettier */
 import { Application, Assets, Sprite, Graphics, Text } from "pixi.js";
+import { createMainMenu } from "./mainmenu.ts";
 
 const init_text = [
   "Welcome detective!",
@@ -28,10 +29,6 @@ const init_text = [
   "Awesome I'll be right back, see you inside",
   "[END OF CONVERSATION]",
 ];
-
-let init_index = 0;
-let menu_flag = 0;
-let isAnimating = false;
 
 function makeSprite(
   spr: Sprite,
@@ -106,19 +103,18 @@ function setText(
   return text;
 }
 
-(async () => {
-  const app = new Application();
-  await app.init({ background: "#000000", resizeTo: window });
-  document.getElementById("pixi-container")!.appendChild(app.canvas);
+async function startGameScreen(app: Application) {
+  let init_index = 0;
+  let menu_flag = 0;
+  let isAnimating = false;
 
-  // GLOBALS KINDA
   const WIDTH = app.screen.width;
   const HEIGHT = app.screen.height;
 
   // DECLARING SPRITES
   const t_back1 = await Assets.load("/assets/background.png");
   const t_sprite1 = await Assets.load("/assets/sprite1.png");
-  const t_sprite2 = await Assets.load("/assets/sprite2.png")
+  const t_sprite2 = await Assets.load("/assets/sprite2.png");
   const t_textbox1 = await Assets.load("/assets/textbox1.png");
   const t_textbox2 = await Assets.load("/assets/textbox2.png");
   const back1 = new Sprite(t_back1);
@@ -133,9 +129,9 @@ function setText(
   // SET SPRITE DIMENSIONS
   makeSprite(back1, 0, 0, WIDTH, HEIGHT);
   app.stage.addChild(back1);
-  makeSprite(sprite1, WIDTH/3, 0.09*HEIGHT, WIDTH/3, HEIGHT/1.1);
+  makeSprite(sprite1, WIDTH / 3, 0.09 * HEIGHT, WIDTH / 3, HEIGHT / 1.1);
   app.stage.addChild(sprite1);
-  makeSprite(textbox1, WIDTH/2 - WIDTH/2.2, HEIGHT - HEIGHT/3, WIDTH/1.1, HEIGHT/3);
+  makeSprite(textbox1, WIDTH / 2 - WIDTH / 2.2, HEIGHT - HEIGHT / 3, WIDTH / 1.1, HEIGHT / 3);
   app.stage.addChild(textbox1);
   makeSprite(textbox2, 0.78 * WIDTH, 0.88 * HEIGHT, 0.12 * WIDTH, 0.12 * HEIGHT);
   app.stage.addChild(textbox2);
@@ -144,9 +140,9 @@ function setText(
 
   // CREATE TEXT
   createText(app, "[ENTER]", "PixelFont", 16, 0.84 * WIDTH, 0.93 * HEIGHT, 0.7 * WIDTH, 1);
-  const dialogue = createDialogue(app, init_text, 0, "PixelFont", 24, WIDTH/2, HEIGHT - 150, 0.7 * WIDTH);
+  const dialogue = createDialogue(app, init_text, 0, "PixelFont", 24, WIDTH / 2, HEIGHT - 150, 0.7 * WIDTH);
 
-    // SET MENU SPRITE DIMENSIONS
+  // SET MENU SPRITE DIMENSIONS
   const black = new Graphics();
   black.rect(0, 0, WIDTH, HEIGHT);
   black.fill("#000000");
@@ -159,7 +155,7 @@ function setText(
   menu_resume.eventMode = "static";
   menu_resume.cursor = "pointer";
   menu_resume.visible = false;
-  const resume_text = createText(app, "Resume", "PixelFont", 24, WIDTH/2, 0.185 * HEIGHT, 0.7 * WIDTH, 1);
+  const resume_text = createText(app, "Resume", "PixelFont", 24, WIDTH / 2, 0.185 * HEIGHT, 0.7 * WIDTH, 1);
   resume_text.visible = false;
   
   makeSprite(menu_help, 0.25 * WIDTH, 0.325 * HEIGHT, 0.5 * WIDTH, 0.15 * HEIGHT);
@@ -167,7 +163,7 @@ function setText(
   menu_help.eventMode = "static";
   menu_help.cursor = "pointer";
   menu_help.visible = false;
-  const help_text = createText(app, "Help", "PixelFont", 24, WIDTH/2, 0.385 * HEIGHT, 0.7 * WIDTH, 1);
+  const help_text = createText(app, "Help", "PixelFont", 24, WIDTH / 2, 0.385 * HEIGHT, 0.7 * WIDTH, 1);
   help_text.visible = false;
 
   makeSprite(menu_settings, 0.25 * WIDTH, 0.525 * HEIGHT, 0.5 * WIDTH, 0.15 * HEIGHT);
@@ -175,7 +171,7 @@ function setText(
   menu_settings.eventMode = "static";
   menu_settings.cursor = "pointer";
   menu_settings.visible = false;
-  const settings_text = createText(app, "Settings", "PixelFont", 24, WIDTH/2, 0.585 * HEIGHT, 0.7 * WIDTH, 1);
+  const settings_text = createText(app, "Settings", "PixelFont", 24, WIDTH / 2, 0.585 * HEIGHT, 0.7 * WIDTH, 1);
   settings_text.visible = false;
 
   makeSprite(menu_exit, 0.25 * WIDTH, 0.725 * HEIGHT, 0.5 * WIDTH, 0.15 * HEIGHT);
@@ -183,16 +179,10 @@ function setText(
   menu_exit.eventMode = "static";
   menu_exit.cursor = "pointer";
   menu_exit.visible = false;
-  const exit_text = createText(app, "Exit", "PixelFont", 24, WIDTH/2, 0.785 * HEIGHT, 0.7 * WIDTH, 1);
+  const exit_text = createText(app, "Exit", "PixelFont", 24, WIDTH / 2, 0.785 * HEIGHT, 0.7 * WIDTH, 1);
   exit_text.visible = false;
 
-
-
-  // ** ACTION LISTENERS BELOW ** //
-
-
-
-  //  DIALOGUE ACTION LISTENERS
+  // DIALOGUE ACTION LISTENERS
   function advanceDialogue() {
     if (isAnimating) return;
     if (init_index >= init_text.length - 1) return;
@@ -201,7 +191,7 @@ function setText(
     init_index++;
     if (init_index < init_text.length) setText(dialogue, init_text[init_index], WIDTH / 2);
 
-    const duration = 800 + (init_text[init_index].length * 25);      // in ms
+    const duration = 800 + (init_text[init_index].length * 25);
     const switchSpeed = 120;
     let elapsed = 0;
     let useAlt = false;
@@ -224,20 +214,19 @@ function setText(
     if (menu_flag === 0) advanceDialogue();
   });
 
-  window.addEventListener("keydown", (event) => {
+  const handleKeyDown = (event: KeyboardEvent) => {
     if (event.key === "Enter") {
       if (menu_flag === 0) advanceDialogue();
     }
-  });
-
+    if (event.key === "Escape") {
+      toggleMenu();
+    }
+  };
+  window.addEventListener("keydown", handleKeyDown);
 
   // MENU ACTION LISTENERS
   function toggleMenu() {
-    if (menu_flag === 0) {
-      menu_flag = 1;
-    } else {
-      menu_flag = 0;
-    }
+    menu_flag = menu_flag === 0 ? 1 : 0;
     black.visible = !black.visible;
     menu_resume.visible = !menu_resume.visible;
     resume_text.visible = !resume_text.visible;
@@ -248,24 +237,17 @@ function setText(
     menu_exit.visible = !menu_exit.visible;
     exit_text.visible = !exit_text.visible;
 
-    // TEMPORARY FOR THE BIT
     setText(help_text, "Help", WIDTH / 2);
     setText(settings_text, "Settings", WIDTH / 2);
     setText(exit_text, "Menu", WIDTH / 2);
   }
-
-  window.addEventListener("keydown", (event) => {
-    if (event.key === "Escape") {
-      toggleMenu();
-    }
-  });
 
   menu_resume.addEventListener("pointerdown", () => {
     if (menu_flag === 1) toggleMenu();
   });
 
   menu_help.addEventListener("pointerdown", () => {
-    if (menu_flag === 1) setText(help_text, "Not implemented yet :(", WIDTH / 2); //help_text.text = "Not implemented yet :(";
+    if (menu_flag === 1) setText(help_text, "Not implemented yet :(", WIDTH / 2);
   });
 
   menu_settings.addEventListener("pointerdown", () => {
@@ -273,7 +255,27 @@ function setText(
   });
 
   menu_exit.addEventListener("pointerdown", () => {
-    if (menu_flag === 1) setText(exit_text, "You could've guessed", WIDTH / 2);
+    if (menu_flag === 1) {
+      // Clean up game listeners and return to main menu
+      window.removeEventListener("keydown", handleKeyDown);
+      app.stage.removeChildren();
+      loadMainMenu(app);
+    }
   });
-})();
+}
 
+async function loadMainMenu(app: Application) {
+  const mainMenu = await createMainMenu(app, () => {
+    app.stage.removeChildren();
+    startGameScreen(app);
+  });
+  app.stage.addChild(mainMenu);
+}
+
+(async () => {
+  const app = new Application();
+  await app.init({ background: "#000000", resizeTo: window });
+  document.getElementById("pixi-container")!.appendChild(app.canvas);
+
+  loadMainMenu(app);
+})();
