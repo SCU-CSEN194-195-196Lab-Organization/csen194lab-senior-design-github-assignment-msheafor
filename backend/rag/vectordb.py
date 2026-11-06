@@ -12,6 +12,9 @@ _collection: Collection | None = None
 
 
 def _persist_path() -> str:
+    # Vercel's deployment filesystem is read-only; only /tmp is writable
+    if os.environ.get("VERCEL"):
+        return "/tmp/chroma_db"
     raw = os.environ.get("CHROMA_PERSIST_PATH", "").strip()
     if raw:
         return raw
