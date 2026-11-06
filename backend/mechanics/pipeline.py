@@ -88,7 +88,7 @@ def detect_named_entity_cards(text: str) -> list[dict]:
             if any(_spans_overlap(c, span) for c in covered):
                 continue
             covered.append(span)
-            out.append(make_card("capitalization", f"Capitalization: "{raw}"",
+            out.append(make_card("capitalization", f"Capitalization: \"{raw}\"",
                                  f"Use the standard form **{fix}**.", fix, confidence))
     return out
 
