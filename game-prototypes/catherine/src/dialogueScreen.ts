@@ -276,20 +276,28 @@ type Piece = {
 };
 
 export async function mountDialogueScreen(app: Application): Promise<void> {
-  const [backgroundTex, characterTex] = await Promise.all([
-    loadOptionalTexture(sceneAssets.background),
-    loadOptionalTexture(sceneAssets.character),
-  ]);
+  const [backgroundTex, suspectsBackgroundTex, ...suspectTextures] =
+    await Promise.all([
+      loadOptionalTexture(sceneAssets.background),
+      loadOptionalTexture(sceneAssets.suspectsBackground),
+      ...sceneAssets.suspects.map((url) => loadOptionalTexture(url)),
+    ]);
 
   hideSystemCursor(app);
+
+  const lineupLayer = new Container();
+  const lineupBg = new Container();
+  lineupLayer.eventMode = "passive";
+  lineupBg.eventMode = "none";
+  lineupLayer.addChild(lineupBg);
 
   const backgroundLayer = new Container();
   const characterLayer = new Container();
   const panelLayer = new Container();
   backgroundLayer.eventMode = "none";
   characterLayer.eventMode = "none";
-  panelLayer.eventMode = "static";
-  app.stage.addChild(backgroundLayer, characterLayer, panelLayer);
+  panelLayer.eventMode = "none";
+  app.stage.addChild(lineupLayer, backgroundLayer, characterLayer, panelLayer);
 
   const panelBg = new Graphics();
   panelBg.eventMode = "none";
@@ -309,16 +317,27 @@ export async function mountDialogueScreen(app: Application): Promise<void> {
   for (const piece of pieces) textLayer.addChild(piece.view);
 
   const seeker = createSeeker();
-  const nextButton = createNextButton();
+  const backButton = createBackButton();
   const note = createNote();
   const prompt = createPrompt();
   const hint = createHint();
-  nextButton.visible = false;
-  panelLayer.addChild(nextButton);
+  backButton.visible = false;
+  panelLayer.addChild(backButton);
   app.stage.addChild(note.view, prompt.view, hint.view, seeker.view);
 
-  const showNext = () =>
-    solved && suspectIndex < SUSPECTS.length - 1;
+  const portraitHosts = sceneAssets.suspects.map(() => {
+    const host = new Container();
+    host.eventMode = "static";
+    host.cursor = "pointer";
+    lineupLayer.addChild(host);
+    return host;
+  });
+
+  const showBack = () => {
+    if (!solved) return false;
+    const hasLie = pieces.some((piece) => piece.lie);
+    return hasLie ? lieRevealed : true;
+  };
   const showNote = () =>
     !lieRevealed &&
     pieces.some((piece) => piece.marked && piece.answer === "oxford");
@@ -340,7 +359,7 @@ export async function mountDialogueScreen(app: Application): Promise<void> {
     const panelW = width - margin * 2;
     const padX = 28;
     const padY = 22;
-    const buttonSpace = showNext() ? NEXT_H + 12 : 0;
+    const buttonSpace = showBack() ? NEXT_H + 12 : 0;
     const promptWidth = panelW - padX * 2;
 
     if (showNote()) drawNote(note, promptWidth);
@@ -361,6 +380,7 @@ export async function mountDialogueScreen(app: Application): Promise<void> {
     const overlap = 28;
 
     app.stage.hitArea = new Rectangle(0, 0, width, height);
+    layoutLineup(width, height);
 
     replaceLayer(
       backgroundLayer,
@@ -371,9 +391,15 @@ export async function mountDialogueScreen(app: Application): Promise<void> {
 
     const characterMaxH = Math.max(96, panelY + overlap - 8);
     const characterMaxW = Math.min(480, width * 0.46);
-    const characterView = characterTex
-      ? fittedSprite(characterTex, characterMaxW, characterMaxH)
-      : characterPlaceholder(characterMaxW, characterMaxH);
+    const portraitTex = suspectTextures[suspectIndex] ?? null;
+    const characterView = portraitTex
+      ? fittedSprite(portraitTex, characterMaxW, characterMaxH)
+      : suspectPlaceholder(
+          characterMaxW,
+          characterMaxH,
+          `suspect-${suspectIndex + 1}.png`,
+          suspectIndex,
+        );
     characterView.position.set(
       (width - characterView.width) / 2,
       panelY + overlap - characterView.height,
@@ -398,8 +424,8 @@ export async function mountDialogueScreen(app: Application): Promise<void> {
     textLayer.hitArea = new Rectangle(0, 0, innerW, innerH - buttonSpace);
     drawMarks(pieces, solved && lieRevealed, lieLayer);
 
-    nextButton.visible = showNext();
-    nextButton.position.set(
+    backButton.visible = showBack();
+    backButton.position.set(
       margin + panelW - padX - NEXT_W,
       panelY + panelH - padY - NEXT_H,
     );
@@ -439,11 +465,56 @@ export async function mountDialogueScreen(app: Application): Promise<void> {
   };
 
   const setSpeechAlpha = (alpha: number) => {
+    backgroundLayer.alpha = alpha;
     characterLayer.alpha = alpha;
     panelLayer.alpha = alpha;
     note.view.alpha = alpha;
     prompt.view.alpha = alpha;
     hint.view.alpha = alpha;
+    seeker.view.alpha = alpha;
+  };
+
+  const fadeLayer = (layer: Container, from: number, to: number, duration: number) =>
+    new Promise<void>((resolve) => {
+      let elapsed = 0;
+      const step = () => {
+        elapsed += app.ticker.deltaMS;
+        const t = Math.min(1, elapsed / duration);
+        const eased = to > from ? 1 - (1 - t) * (1 - t) : t * t;
+        layer.alpha = from + (to - from) * eased;
+        if (t < 1) return;
+        app.ticker.remove(step);
+        resolve();
+      };
+      app.ticker.add(step);
+    });
+
+  const layoutLineup = (width: number, height: number) => {
+    replaceLayer(
+      lineupBg,
+      suspectsBackgroundTex
+        ? coverSprite(suspectsBackgroundTex, width, height)
+        : backgroundPlaceholder(width, height, "suspects-background.png"),
+    );
+
+    const margin = 36;
+    const gap = 28;
+    const slotW = (width - margin * 2 - gap * 2) / 3;
+    const maxH = Math.max(140, height - margin * 2);
+    const bottom = height - 16;
+    portraitHosts.forEach((host, index) => {
+      const texture = suspectTextures[index] ?? null;
+      const art = texture
+        ? fittedSprite(texture, slotW, maxH)
+        : suspectPlaceholder(slotW, maxH, `suspect-${index + 1}.png`, index);
+      replaceLayer(host, art);
+      const bounds = art.getLocalBounds();
+      host.position.set(
+        margin + index * (slotW + gap) + (slotW - bounds.width) / 2 - bounds.x,
+        bottom - bounds.y - bounds.height,
+      );
+      host.hitArea = new Rectangle(bounds.x, bounds.y, bounds.width, bounds.height);
+    });
   };
 
   const fadeSpeech = (from: number, to: number, duration: number) =>
@@ -489,32 +560,75 @@ export async function mountDialogueScreen(app: Application): Promise<void> {
     revealLie(event);
   });
 
-  nextButton.on("pointerdown", (event: FederatedPointerEvent) => {
-    event.stopPropagation();
-    if (transitioning || suspectIndex >= SUSPECTS.length - 1) return;
-    transitioning = true;
-    panelLayer.eventMode = "none";
-    void fadeSpeech(1, 0, 420).then(async () => {
-      showSuspect(suspectIndex + 1);
-      setSpeechAlpha(0);
-      await new Promise((resolve) => {
-        setTimeout(resolve, 180);
-      });
-      await fadeSpeech(0, 1, 480);
-      panelLayer.eventMode = "static";
-      transitioning = false;
-    });
-  });
-
   const glass = createMagnifier();
+  let cursorClicking = false;
+  const setCursorClicking = (clicking: boolean) => {
+    cursorClicking = clicking;
+    glass.visible = !clicking;
+    app.canvas.style.cursor = clicking ? "pointer" : "none";
+  };
   app.stage.addChild(glass);
   app.stage.eventMode = "static";
   app.stage.cursor = "none";
   app.stage.on("globalpointermove", (event: FederatedPointerEvent) => {
-    glass.visible = true;
+    glass.visible = !cursorClicking;
     glass.position.set(event.global.x, event.global.y);
   });
 
+  const openSuspect = async (index: number) => {
+    if (transitioning) return;
+    transitioning = true;
+    setCursorClicking(false);
+    for (const host of portraitHosts) host.eventMode = "none";
+    await fadeLayer(lineupLayer, 1, 0, 420);
+    lineupLayer.visible = false;
+    showSuspect(index);
+    setSpeechAlpha(0);
+    await fadeSpeech(0, 1, 480);
+    panelLayer.eventMode = "static";
+    transitioning = false;
+  };
+
+  const returnToLineup = async () => {
+    if (transitioning || !showBack()) return;
+    transitioning = true;
+    setCursorClicking(false);
+    panelLayer.eventMode = "none";
+    await fadeSpeech(1, 0, 420);
+    lineupLayer.visible = true;
+    lineupLayer.alpha = 0;
+    await fadeLayer(lineupLayer, 0, 1, 480);
+    for (const host of portraitHosts) host.eventMode = "static";
+    transitioning = false;
+  };
+
+  portraitHosts.forEach((host, index) => {
+    host.on("pointerover", () => {
+      setCursorClicking(true);
+    });
+    host.on("pointerout", () => {
+      setCursorClicking(false);
+    });
+    host.on("pointerdown", (event: FederatedPointerEvent) => {
+      event.stopPropagation();
+      setCursorClicking(true);
+      void openSuspect(index);
+    });
+  });
+
+  backButton.on("pointerover", () => {
+    setCursorClicking(true);
+  });
+  backButton.on("pointerout", () => {
+    setCursorClicking(false);
+  });
+  backButton.on("pointerdown", (event: FederatedPointerEvent) => {
+    event.stopPropagation();
+    setCursorClicking(true);
+    void returnToLineup();
+  });
+
+  setSpeechAlpha(0);
   layout();
   app.renderer.on("resize", layout);
 }
@@ -739,11 +853,11 @@ function slotWidth(piece: Piece): number {
   return natural;
 }
 
-function createNextButton(): Container {
+function createBackButton(): Container {
   const view = new Container();
   const bg = new Graphics();
   const label = new Text({
-    text: "move to the next suspect",
+    text: "back to the suspects",
     style: {
       fontFamily: FONT,
       fontSize: 16,
@@ -757,7 +871,7 @@ function createNextButton(): Container {
     .stroke({ width: 2, color: 0x1c1915 });
   label.position.set((NEXT_W - label.width) / 2, (NEXT_H - label.height) / 2);
   view.eventMode = "static";
-  view.cursor = "none";
+  view.cursor = "pointer";
   view.hitArea = new Rectangle(0, 0, NEXT_W, NEXT_H);
   view.addChild(bg, label);
   return view;
@@ -910,7 +1024,7 @@ function hideSystemCursor(app: Application) {
   app.canvas.style.cursor = "none";
   const styles = app.renderer.events.cursorStyles;
   styles.default = "none";
-  styles.pointer = "none";
+  styles.pointer = "pointer";
   styles.grab = "none";
   styles.grabbing = "none";
   styles.magnifier = "none";
@@ -938,7 +1052,11 @@ function fittedSprite(
   return sprite;
 }
 
-function backgroundPlaceholder(width: number, height: number): Container {
+function backgroundPlaceholder(
+  width: number,
+  height: number,
+  title = "background.png",
+): Container {
   const view = new Container();
   const wall = new Graphics();
   wall.rect(0, 0, width, height).fill("#3f342c");
@@ -946,7 +1064,7 @@ function backgroundPlaceholder(width: number, height: number): Container {
   view.addChild(wall);
 
   const label = new Text({
-    text: "background.png",
+    text: title,
     style: {
       fontFamily: FONT,
       fontSize: 20,
@@ -959,10 +1077,17 @@ function backgroundPlaceholder(width: number, height: number): Container {
   return view;
 }
 
-function characterPlaceholder(maxWidth: number, maxHeight: number): Container {
+const SUSPECT_COLORS = ["#3d5a4c", "#6b4a3a", "#3a4a6b"];
+
+function suspectPlaceholder(
+  maxWidth: number,
+  maxHeight: number,
+  title: string,
+  index: number,
+): Container {
   const view = new Container();
-  const height = Math.min(maxHeight, 720);
-  const width = Math.min(maxWidth, height * 0.52);
+  const height = Math.min(maxHeight, 640);
+  const width = Math.min(maxWidth, height * 0.62);
   const bodyW = width * 0.72;
   const bodyH = height * 0.58;
   const bodyX = (width - bodyW) / 2;
@@ -970,7 +1095,7 @@ function characterPlaceholder(maxWidth: number, maxHeight: number): Container {
   const headR = width * 0.22;
 
   const figure = new Graphics();
-  figure.roundRect(bodyX, bodyY, bodyW, bodyH, 40).fill("#3d5a4c");
+  figure.roundRect(bodyX, bodyY, bodyW, bodyH, 40).fill(SUSPECT_COLORS[index] ?? "#3d5a4c");
   figure
     .roundRect(bodyX, bodyY + bodyH * 0.58, bodyW, bodyH * 0.42, 18)
     .fill("#2c241e");
@@ -978,10 +1103,10 @@ function characterPlaceholder(maxWidth: number, maxHeight: number): Container {
   view.addChild(figure);
 
   const label = new Text({
-    text: "character.png",
+    text: title,
     style: {
       fontFamily: FONT,
-      fontSize: Math.max(16, Math.min(24, width * 0.1)),
+      fontSize: Math.max(16, Math.min(22, width * 0.12)),
       fill: "#f4efe4",
       align: "center",
     },
