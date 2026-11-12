@@ -17,6 +17,7 @@ build/
 # Backend generated data
 backend/chroma_db/
 backend/data/
+backend/firebase-key.json
 
 # Node
 node_modules/
