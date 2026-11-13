@@ -38,6 +38,7 @@ function makeSprite(
   height: number,
 ): void {
   spr.position.set(x, y);
+  spr.anchor.set(0.5);
   spr.width = width;
   spr.height = height;
 }
@@ -64,6 +65,7 @@ function createText(
   });
   if (centered_flag == 1) txt.position.set(x - txt.width / 2, y);
   else txt.position.set(x, y);
+  txt.anchor.set(0.5);
   app.stage.addChild(txt);
   return txt;
 }
@@ -89,6 +91,7 @@ function createDialogue(
     },
   });
   txt.position.set(x - txt.width / 2, y);
+  txt.anchor.set(0.5);
   app.stage.addChild(txt);
   return txt;
 }
@@ -100,6 +103,7 @@ function setText(
 ): Text {
   text.text = content;
   text.x = x - text.width / 2;
+  text.anchor.set(0.5);
   return text;
 }
 
