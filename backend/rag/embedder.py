@@ -1,21 +1,29 @@
 from __future__ import annotations
 
-from sentence_transformers import SentenceTransformer
+import os
 
-_MODEL_NAME = "all-MiniLM-L6-v2"
-_model: SentenceTransformer | None = None
+import httpx
+
+_JINA_URL = "https://api.jina.ai/v1/embeddings"
+_JINA_MODEL = "jina-embeddings-v3"
 
 
-def get_model() -> SentenceTransformer:
-    global _model
-    if _model is None:
-        _model = SentenceTransformer(_MODEL_NAME)
-    return _model
+def _api_key() -> str:
+    key = os.environ.get("JINA_API_KEY", "").strip()
+    if not key:
+        raise RuntimeError("JINA_API_KEY is not set")
+    return key
 
 
 def embed(texts: list[str]) -> list[list[float]]:
-    model = get_model()
-    return model.encode(texts, convert_to_numpy=True).tolist()
+    resp = httpx.post(
+        _JINA_URL,
+        headers={"Authorization": f"Bearer {_api_key()}", "Content-Type": "application/json"},
+        json={"model": _JINA_MODEL, "input": texts},
+        timeout=30.0,
+    )
+    resp.raise_for_status()
+    return [item["embedding"] for item in resp.json()["data"]]
 
 
 def embed_one(text: str) -> list[float]:

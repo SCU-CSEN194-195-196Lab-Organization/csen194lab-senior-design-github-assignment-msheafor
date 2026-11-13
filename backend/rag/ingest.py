@@ -1,13 +1,11 @@
 from __future__ import annotations
 
 import logging
-import os
 import re
-import shutil
 from pathlib import Path
 
 from rag.embedder import embed
-from rag.vectordb import collection_count, init_chroma, upsert_chunks
+from rag.vectordb import collection_count, init_vector_db, upsert_chunks
 
 log = logging.getLogger(__name__)
 
@@ -65,22 +63,9 @@ def _load_chunks() -> list[tuple[str, str, dict]]:
     return chunks
 
 
-def _seed_tmp_from_prebuilt() -> None:
-    """On Vercel, copy the committed chroma_db into /tmp so ChromaDB can write to it."""
-    tmp_path = Path("/tmp/chroma_db")
-    if tmp_path.exists():
-        return
-    prebuilt = Path(__file__).parent.parent / "chroma_db"
-    if prebuilt.exists():
-        shutil.copytree(prebuilt, tmp_path)
-        log.info("Copied pre-built chroma_db to /tmp/chroma_db")
-
-
 async def ensure_ingested() -> None:
-    """Ingest knowledge base into Chroma on startup. No-op if already populated."""
-    if os.environ.get("VERCEL"):
-        _seed_tmp_from_prebuilt()
-    await init_chroma()
+    """Ingest knowledge base into Pinecone on startup. No-op if already populated."""
+    await init_vector_db()
     count = collection_count()
     if count > 0:
         log.info("Chroma already has %d chunks — skipping ingest", count)
