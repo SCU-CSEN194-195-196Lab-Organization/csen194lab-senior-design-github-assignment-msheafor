@@ -41,7 +41,7 @@ def retrieve_for_coaching(draft_text: str, top_k: int = RAG_TOP_K) -> list[dict]
 
 
 def retrieve_from_user_drafts(drafts: list[dict], query_text: str, top_k: int = 2) -> list[dict]:
-    """Lightweight cosine rerank of in-memory user draft history (no Chroma)."""
+    """Lightweight cosine rerank of in-memory user draft history (no Pinecone)."""
     if not drafts:
         return []
 
