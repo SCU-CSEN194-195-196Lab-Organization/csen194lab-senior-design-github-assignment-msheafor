@@ -11,6 +11,7 @@ import {
 } from "pixi.js";
 import { sceneAssets } from "./sceneAssets.ts";
 import { loadSuspectScript, type Answer, type PieceDef } from "./loadSuspects.ts";
+import { fetchHint } from "./hintClient.ts";
 
 const TEXT_COLOR = "#1c1915";
 const GREEN = 0x1b8a3e;
@@ -33,6 +34,8 @@ const LINEUP_REVEAL =
 
 const BLUE_HINT =
   "You currently have a comma missing from a sentence that needs it. Try look for words like \u201cfor,\u201d \u201cand,\u201d \u201cnor,\u201d \u201cbut,\u201d \u201cor,\u201d and \u201ctherefore,\u201d and check if they separate two ideas that work as complete sentences on their own. Also check for lists of items or actions, and see if each item is separated by a comma.";
+
+const CASE_NUMBER = 1;
 
 type Piece = {
   view: Container;
@@ -88,7 +91,9 @@ export async function mountDialogueScreen(app: Application): Promise<void> {
   let solved = false;
   let transitioning = false;
   let liesRevealed = false;
+  let hintRequested = false;
   let suspectIndex = 0;
+  let hintRequestId = 0;
   let pieces = createPieces(script[suspectIndex] ?? []);
   for (const piece of pieces) textLayer.addChild(piece.view);
 
@@ -99,6 +104,9 @@ export async function mountDialogueScreen(app: Application): Promise<void> {
   const bulb = createLightBulb();
   const glassTool = createToolPlaceholder("glass");
   const bulbTool = createToolPlaceholder("bulb");
+  bulbTool.eventMode = "static";
+  bulbTool.cursor = "pointer";
+  bulbTool.hitArea = new Rectangle(0, 0, TOOL_SIZE, TOOL_SIZE);
   backButton.visible = false;
   bulb.visible = false;
   panelLayer.addChild(backButton, glassTool, bulbTool);
@@ -139,7 +147,7 @@ export async function mountDialogueScreen(app: Application): Promise<void> {
   lineupLayer.addChild(scriptErrorView);
 
   const showNote = () => pieces.some((piece) => piece.marked && piece.answer === "oxford");
-  const showHint = () => pieces.some((piece) => piece.marked && !piece.answer);
+  const showHint = () => hintRequested || pieces.some((piece) => piece.marked && !piece.answer);
 
   const layout = () => {
     const width = app.screen.width;
@@ -199,7 +207,7 @@ export async function mountDialogueScreen(app: Application): Promise<void> {
     );
     replaceLayer(characterLayer, characterView);
 
-    panelLayer.hitArea = new Rectangle(bubbleX, bubbleY, bubbleW, bubbleH);
+    panelLayer.hitArea = new Rectangle(bubbleX, bubbleY, bubbleW + toolGap + TOOL_SIZE, bubbleH);
     panelBg.clear();
     const headY = characterView.y + characterBounds.y + characterBounds.height * 0.22;
     const tailY = Math.max(bubbleY + 20, Math.min(headY - 16, bubbleY + bubbleH - 64));
@@ -378,12 +386,24 @@ export async function mountDialogueScreen(app: Application): Promise<void> {
       app.ticker.add(step);
     });
 
+  const loadHint = async () => {
+    const requestId = ++hintRequestId;
+    const result = await fetchHint(CASE_NUMBER, suspectIndex + 1);
+    // Skip answers that arrive after the player moved on.
+    if (requestId !== hintRequestId || !result) return;
+    hint.label.text = `${result.speaker}: ${result.text}`;
+    layout();
+  };
+
   const showSuspect = (index: number) => {
     suspectIndex = index;
+    hintRequestId += 1;
+    hint.label.text = BLUE_HINT;
     for (const piece of pieces) piece.view.destroy({ children: true });
     pieces = createPieces(script[suspectIndex] ?? []);
     for (const piece of pieces) textLayer.addChild(piece.view);
     solved = false;
+    hintRequested = false;
     layout();
   };
 
@@ -394,7 +414,9 @@ export async function mountDialogueScreen(app: Application): Promise<void> {
     if (!piece) return;
     event.stopPropagation();
     piece.marked = !piece.marked;
+    const wrongTap = piece.marked && !piece.answer;
     refresh();
+    if (wrongTap) void loadHint();
   });
 
   const glass = createMagnifier();
@@ -472,6 +494,19 @@ export async function mountDialogueScreen(app: Application): Promise<void> {
   lineupLayer.on("pointerdown", () => {
     if (transitioning || liesRevealed || !lineupLayer.visible || !allCorrected()) return;
     liesRevealed = true;
+    layout();
+  });
+
+  bulbTool.on("pointerover", () => {
+    setCursorClicking(true);
+  });
+  bulbTool.on("pointerout", () => {
+    setCursorClicking(false);
+  });
+  bulbTool.on("pointerdown", (event: FederatedPointerEvent) => {
+    event.stopPropagation();
+    if (transitioning) return;
+    hintRequested = !hintRequested;
     layout();
   });
 
