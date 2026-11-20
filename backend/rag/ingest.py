@@ -68,7 +68,7 @@ async def ensure_ingested() -> None:
     await init_vector_db()
     count = collection_count()
     if count > 0:
-        log.info("Chroma already has %d chunks — skipping ingest", count)
+        log.info("Pinecone already has %d chunks — skipping ingest", count)
         return
 
     chunks = _load_chunks()
@@ -83,4 +83,4 @@ async def ensure_ingested() -> None:
     log.info("Embedding %d knowledge chunks...", len(texts))
     embeddings = embed(texts)
     upsert_chunks(ids=ids, embeddings=embeddings, documents=texts, metadatas=metadatas)
-    log.info("Ingested %d chunks into Chroma from %s", len(chunks), KNOWLEDGE_DIR)
+    log.info("Ingested %d chunks into Pinecone from %s", len(chunks), KNOWLEDGE_DIR)
