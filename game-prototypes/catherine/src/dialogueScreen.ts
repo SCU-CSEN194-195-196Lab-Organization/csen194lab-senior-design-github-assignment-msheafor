@@ -46,12 +46,15 @@ type Piece = {
   slotWidth: number;
 };
 
-export async function mountDialogueScreen(app: Application): Promise<void> {
+export async function createDialogueScreen(
+  app: Application,
+  onExit: () => void = () => {},
+): Promise<Container> {
   const [textureResult, scriptResult] = await Promise.all([
     Promise.all([
-      loadOptionalTexture(sceneAssets.background),
-      loadOptionalTexture(sceneAssets.suspectsBackground),
-      ...sceneAssets.suspects.map((url) => loadOptionalTexture(url)),
+      requireTexture(sceneAssets.background),
+      requireTexture(sceneAssets.suspectsBackground),
+      ...sceneAssets.suspects.map((url) => requireTexture(url)),
     ]),
     loadSuspectScript(),
   ]);
@@ -59,7 +62,10 @@ export async function mountDialogueScreen(app: Application): Promise<void> {
   const script = scriptResult.suspects;
   const scriptError = scriptResult.error;
 
-  hideSystemCursor(app);
+  const page = new Container();
+  page.eventMode = "static";
+  page.cursor = "none";
+  page.on("destroyed", onExit);
 
   const lineupLayer = new Container();
   const lineupBg = new Container();
@@ -73,7 +79,13 @@ export async function mountDialogueScreen(app: Application): Promise<void> {
   backgroundLayer.eventMode = "none";
   characterLayer.eventMode = "none";
   panelLayer.eventMode = "none";
-  app.stage.addChild(lineupLayer, backgroundLayer, characterLayer, panelLayer);
+
+  const backgroundSprite = new Sprite(backgroundTex);
+  backgroundSprite.eventMode = "none";
+  backgroundLayer.addChild(backgroundSprite);
+  const lineupBackground = new Sprite(suspectsBackgroundTex);
+  lineupBackground.eventMode = "none";
+  lineupBg.addChild(lineupBackground);
 
   const panelBg = new Graphics();
   panelBg.eventMode = "none";
@@ -102,7 +114,16 @@ export async function mountDialogueScreen(app: Application): Promise<void> {
   backButton.visible = false;
   bulb.visible = false;
   panelLayer.addChild(backButton, glassTool, bulbTool);
-  app.stage.addChild(note.view, hint.view, bulb, seeker.view);
+  page.addChild(
+    lineupLayer,
+    backgroundLayer,
+    characterLayer,
+    panelLayer,
+    note.view,
+    hint.view,
+    bulb,
+    seeker.view,
+  );
 
   const portraitHosts = sceneAssets.suspects.map(() => {
     const host = new Container();
@@ -138,7 +159,8 @@ export async function mountDialogueScreen(app: Application): Promise<void> {
   scriptErrorView.addChild(scriptErrorBg, scriptErrorLabel);
   lineupLayer.addChild(scriptErrorView);
 
-  const showNote = () => pieces.some((piece) => piece.marked && piece.answer === "oxford");
+  const showNote = () =>
+    !solved && pieces.some((piece) => piece.marked && piece.answer === "oxford");
   const showHint = () => pieces.some((piece) => piece.marked && !piece.answer);
 
   const layout = () => {
@@ -156,52 +178,44 @@ export async function mountDialogueScreen(app: Application): Promise<void> {
     const bulbSize = 48;
     const hintCardW = width - margin * 2 - bulbSize - 12;
 
-    if (showNote()) drawNote(note, hintCardW);
-    const noteH = showNote() ? note.label.height + 20 : 0;
-    if (showHint()) drawHint(hint, hintCardW);
-    const hintH = showHint() ? hint.label.height + 20 : 0;
+    drawNote(note, hintCardW);
+    drawHint(hint, hintCardW);
+    const noteFullH = note.label.height + 20;
+    const hintFullH = hint.label.height + 20;
+    const reservedH = noteFullH + hintFullH + 10;
+    const noteH = showNote() ? noteFullH : 0;
+    const hintH = showHint() ? hintFullH : 0;
     const betweenCards = noteH > 0 && hintH > 0 ? 10 : 0;
     const hintStackH = noteH + hintH + betweenCards;
     const showBulb = hintStackH > 0;
     const rowH = showBulb ? Math.max(hintStackH, bulbSize) : 0;
-    const rowGap = showBulb ? 14 : 0;
-    const bubbleH = Math.max(240, height - top - margin - rowH - rowGap);
+    const bubbleH = Math.max(240, height - top - margin - reservedH - 14);
     const bubbleY = top;
     const textMaxH = Math.max(64, bubbleH - padY * 2 - NEXT_H - 36);
 
-    app.stage.hitArea = new Rectangle(0, 0, width, height);
+    page.hitArea = new Rectangle(0, 0, width, height);
     layoutLineup(width, height);
 
-    replaceLayer(
-      backgroundLayer,
-      backgroundTex
-        ? coverSprite(backgroundTex, width, height)
-        : backgroundPlaceholder(width, height),
-    );
+    makeSprite(backgroundSprite, 0, 0, width, height);
 
     layoutPieces(pieces, innerW, textMaxH);
     const textH = piecesHeight(pieces);
 
     const characterMaxH = Math.max(140, bubbleH);
-    const portraitTex = suspectTextures[suspectIndex] ?? null;
-    const characterView = portraitTex
-      ? fittedSprite(portraitTex, charCol, characterMaxH)
-      : suspectPlaceholder(
-          charCol,
-          characterMaxH,
-          `suspect-${suspectIndex + 1}.png`,
-          suspectIndex,
-        );
-    const characterBounds = characterView.getLocalBounds();
+    const portraitTex = suspectTextures[suspectIndex];
+    if (!portraitTex) {
+      throw new Error(`Missing ${sceneAssets.suspects[suspectIndex]}`);
+    }
+    const characterView = portraitSprite(portraitTex, charCol, characterMaxH);
     characterView.position.set(
-      margin + Math.max(0, (charCol - characterBounds.width) / 2) - characterBounds.x,
-      bubbleY + bubbleH - characterBounds.y - characterBounds.height,
+      margin + Math.max(0, (charCol - characterView.width) / 2),
+      bubbleY + bubbleH - characterView.height,
     );
     replaceLayer(characterLayer, characterView);
 
     panelLayer.hitArea = new Rectangle(bubbleX, bubbleY, bubbleW, bubbleH);
     panelBg.clear();
-    const headY = characterView.y + characterBounds.y + characterBounds.height * 0.22;
+    const headY = characterView.y + characterView.height * 0.22;
     const tailY = Math.max(bubbleY + 20, Math.min(headY - 16, bubbleY + bubbleH - 64));
     panelBg
       .roundRect(bubbleX, bubbleY, bubbleW, bubbleH, 18)
@@ -230,7 +244,7 @@ export async function mountDialogueScreen(app: Application): Promise<void> {
     glassTool.position.set(toolX, bubbleY);
     bulbTool.position.set(toolX, bubbleY + bubbleH - TOOL_SIZE);
 
-    const rowY = height - margin - rowH;
+    const rowY = bubbleY + bubbleH + 14;
     const stackY = rowY + (rowH - hintStackH) / 2;
     note.view.visible = noteH > 0;
     if (note.view.visible) note.view.position.set(margin, stackY);
@@ -262,28 +276,8 @@ export async function mountDialogueScreen(app: Application): Promise<void> {
     seeker.view.alpha = alpha;
   };
 
-  const fadeLayer = (layer: Container, from: number, to: number, duration: number) =>
-    new Promise<void>((resolve) => {
-      let elapsed = 0;
-      const step = () => {
-        elapsed += app.ticker.deltaMS;
-        const t = Math.min(1, elapsed / duration);
-        const eased = to > from ? 1 - (1 - t) * (1 - t) : t * t;
-        layer.alpha = from + (to - from) * eased;
-        if (t < 1) return;
-        app.ticker.remove(step);
-        resolve();
-      };
-      app.ticker.add(step);
-    });
-
   const layoutLineup = (width: number, height: number) => {
-    replaceLayer(
-      lineupBg,
-      suspectsBackgroundTex
-        ? coverSprite(suspectsBackgroundTex, width, height)
-        : backgroundPlaceholder(width, height, "suspects-background.png"),
-    );
+    makeSprite(lineupBackground, 0, 0, width, height);
 
     lineupLayer.hitArea = new Rectangle(0, 0, width, height);
     const margin = 36;
@@ -305,10 +299,11 @@ export async function mountDialogueScreen(app: Application): Promise<void> {
       : Math.max(140, height - margin * 2);
     const bottom = height - 16;
     portraitHosts.forEach((host, index) => {
-      const texture = suspectTextures[index] ?? null;
-      const art = texture
-        ? fittedSprite(texture, slotW, maxH)
-        : suspectPlaceholder(slotW, maxH, `suspect-${index + 1}.png`, index);
+      const texture = suspectTextures[index];
+      if (!texture) {
+        throw new Error(`Missing ${sceneAssets.suspects[index]}`);
+      }
+      const art = portraitSprite(texture, slotW, maxH);
       replaceLayer(host, art);
       const bounds = art.getLocalBounds();
       host.position.set(
@@ -363,21 +358,6 @@ export async function mountDialogueScreen(app: Application): Promise<void> {
     }
   };
 
-  const fadeSpeech = (from: number, to: number, duration: number) =>
-    new Promise<void>((resolve) => {
-      let elapsed = 0;
-      const step = () => {
-        elapsed += app.ticker.deltaMS;
-        const t = Math.min(1, elapsed / duration);
-        const eased = to > from ? 1 - (1 - t) * (1 - t) : t * t;
-        setSpeechAlpha(from + (to - from) * eased);
-        if (t < 1) return;
-        app.ticker.remove(step);
-        resolve();
-      };
-      app.ticker.add(step);
-    });
-
   const showSuspect = (index: number) => {
     suspectIndex = index;
     for (const piece of pieces) piece.view.destroy({ children: true });
@@ -393,6 +373,9 @@ export async function mountDialogueScreen(app: Application): Promise<void> {
     const piece = pieceAt(pieces, local.x, local.y);
     if (!piece) return;
     event.stopPropagation();
+    const correctMark =
+      piece.answer === "add" || piece.answer === "remove" || piece.answer === "oxford";
+    if (piece.marked && correctMark) return;
     piece.marked = !piece.marked;
     refresh();
   });
@@ -403,47 +386,45 @@ export async function mountDialogueScreen(app: Application): Promise<void> {
     cursorClicking = clicking;
     const pointing = clicking || (lineupLayer.visible && allCorrected() && !liesRevealed);
     glass.visible = !pointing;
-    app.canvas.style.cursor = pointing ? "pointer" : "none";
+    page.cursor = pointing ? "pointer" : "none";
   };
-  app.stage.addChild(glass);
-  app.stage.eventMode = "static";
-  app.stage.cursor = "none";
+  page.addChild(glass);
   const revealCursor = () => lineupLayer.visible && allCorrected() && !liesRevealed;
-  app.stage.on("globalpointermove", (event: FederatedPointerEvent) => {
+  page.on("globalpointermove", (event: FederatedPointerEvent) => {
+    if (!page.visible) return;
     const pointing = cursorClicking || revealCursor();
     glass.visible = !pointing;
-    glass.position.set(event.global.x, event.global.y);
-    app.canvas.style.cursor = pointing ? "pointer" : "none";
+    page.cursor = pointing ? "pointer" : "none";
+    const local = page.toLocal(event.global);
+    glass.position.set(local.x, local.y);
   });
 
-  const openSuspect = async (index: number) => {
+  const openSuspect = (index: number) => {
     if (transitioning || scriptError || !script[index]) return;
     transitioning = true;
     setCursorClicking(false);
     for (const host of portraitHosts) host.eventMode = "none";
-    await fadeLayer(lineupLayer, 1, 0, 420);
     lineupLayer.visible = false;
+    lineupLayer.alpha = 0;
     showSuspect(index);
-    setSpeechAlpha(0);
-    await fadeSpeech(0, 1, 480);
+    setSpeechAlpha(1);
     panelLayer.eventMode = "static";
     transitioning = false;
   };
 
-  const returnToLineup = async () => {
+  const returnToLineup = () => {
     if (transitioning) return;
     transitioning = true;
     setCursorClicking(false);
     panelLayer.eventMode = "none";
-    await fadeSpeech(1, 0, 420);
+    setSpeechAlpha(0);
     const current = visitStatus[suspectIndex];
     if (current !== "corrected") {
       visitStatus[suspectIndex] = solved ? "corrected" : "unfinished";
     }
     layout();
     lineupLayer.visible = true;
-    lineupLayer.alpha = 0;
-    await fadeLayer(lineupLayer, 0, 1, 480);
+    lineupLayer.alpha = 1;
     for (const host of portraitHosts) host.eventMode = "static";
     transitioning = false;
     setCursorClicking(cursorClicking);
@@ -489,7 +470,7 @@ export async function mountDialogueScreen(app: Application): Promise<void> {
 
   setSpeechAlpha(0);
   layout();
-  app.renderer.on("resize", layout);
+  return page;
 }
 
 function createPieces(sentence: PieceDef[]): Piece[] {
@@ -1110,102 +1091,26 @@ function createMagnifier(): Container {
   return glass;
 }
 
-function hideSystemCursor(app: Application) {
-  app.canvas.style.cursor = "none";
-  const styles = app.renderer.events.cursorStyles;
-  styles.default = "none";
-  styles.pointer = "pointer";
-  styles.grab = "none";
-  styles.grabbing = "none";
-  styles.magnifier = "none";
+function makeSprite(spr: Sprite, x: number, y: number, width: number, height: number): void {
+  spr.position.set(x, y);
+  spr.width = width;
+  spr.height = height;
 }
 
-function coverSprite(texture: Texture, width: number, height: number): Sprite {
+function portraitSprite(texture: Texture, maxWidth: number, maxHeight: number): Sprite {
   const sprite = new Sprite(texture);
-  sprite.anchor.set(0.5);
-  sprite.scale.set(Math.max(width / texture.width, height / texture.height));
-  sprite.position.set(width / 2, height / 2);
+  const scale = Math.min(maxWidth / texture.width, maxHeight / texture.height);
   sprite.eventMode = "none";
+  makeSprite(sprite, 0, 0, texture.width * scale, texture.height * scale);
   return sprite;
 }
 
-function fittedSprite(
-  texture: Texture,
-  maxWidth: number,
-  maxHeight: number,
-): Sprite {
-  const sprite = new Sprite(texture);
-  sprite.scale.set(
-    Math.min(maxWidth / texture.width, maxHeight / texture.height),
-  );
-  sprite.eventMode = "none";
-  return sprite;
-}
-
-function backgroundPlaceholder(
-  width: number,
-  height: number,
-  title = "background.png",
-): Container {
-  const view = new Container();
-  const wall = new Graphics();
-  wall.rect(0, 0, width, height).fill("#3f342c");
-  wall.rect(0, height * 0.72, width, height * 0.28).fill("#2a221c");
-  view.addChild(wall);
-
-  const label = new Text({
-    text: title,
-    style: {
-      fontFamily: FONT,
-      fontSize: 20,
-      fill: "#e6d7c3",
-    },
-  });
-  label.position.set(24, 20);
-  view.addChild(label);
-  view.eventMode = "none";
-  return view;
-}
-
-const SUSPECT_COLORS = ["#3d5a4c", "#6b4a3a", "#3a4a6b"];
-
-function suspectPlaceholder(
-  maxWidth: number,
-  maxHeight: number,
-  title: string,
-  index: number,
-): Container {
-  const view = new Container();
-  const width = Math.min(maxWidth, maxHeight * 0.62);
-  const height = Math.min(maxHeight, width / 0.62);
-  const bodyW = width * 0.72;
-  const bodyH = height * 0.58;
-  const bodyX = (width - bodyW) / 2;
-  const bodyY = height - bodyH;
-  const headR = width * 0.22;
-
-  const figure = new Graphics();
-  figure.roundRect(bodyX, bodyY, bodyW, bodyH, 40).fill(SUSPECT_COLORS[index] ?? "#3d5a4c");
-  figure
-    .roundRect(bodyX, bodyY + bodyH * 0.58, bodyW, bodyH * 0.42, 18)
-    .fill("#2c241e");
-  figure.circle(width / 2, bodyY - headR * 0.2, headR).fill("#e2c2a4");
-  view.addChild(figure);
-
-  const label = new Text({
-    text: title,
-    style: {
-      fontFamily: FONT,
-      fontSize: Math.max(16, Math.min(22, width * 0.12)),
-      fill: "#f4efe4",
-      align: "center",
-    },
-  });
-  label.anchor.set(0.5);
-  label.position.set(width / 2, bodyY + bodyH * 0.32);
-  view.addChild(label);
-  view.eventMode = "none";
-  return view;
+async function requireTexture(url: string): Promise<Texture> {
+  const response = await fetch(url);
+  if (!response.ok) throw new Error(`Missing ${url}`);
+  const type = response.headers.get("content-type") ?? "";
+  if (!type.startsWith("image/")) throw new Error(`Missing ${url}`);
+  return Assets.load<Texture>(url);
 }
 
 function replaceLayer(layer: Container, next: Container) {
@@ -1215,14 +1120,3 @@ function replaceLayer(layer: Container, next: Container) {
   layer.addChild(next);
 }
 
-async function loadOptionalTexture(url: string): Promise<Texture | null> {
-  try {
-    const response = await fetch(url);
-    if (!response.ok) return null;
-    const type = response.headers.get("content-type") ?? "";
-    if (!type.startsWith("image/")) return null;
-    return await Assets.load<Texture>(url);
-  } catch {
-    return null;
-  }
-}
