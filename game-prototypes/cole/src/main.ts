@@ -1,7 +1,7 @@
 /* eslint-disable prettier/prettier */
 import { Application, Assets, Sprite, Graphics, Text } from "pixi.js";
 import { createMainMenu } from "./mainmenu.ts";
-import { startGameScreen } from "./game.ts";
+import { startSuspectSelectScreen } from "./suspectSelect.ts";
 
 const init_text = [
   "Hey Detective! I’m glad you made it.        ",
@@ -194,10 +194,12 @@ async function startIntroScreen(app: Application) {
     if (isAnimating) return;
 
     if (init_index >= init_text.length - 1) {
-      // Clean up intro listeners and transition directly to the game conversation screen
+      // Clean up intro listeners and open the suspect selection screen
       window.removeEventListener("keydown", handleKeyDown);
       app.stage.removeChildren();
-      startGameScreen(app);
+      void startSuspectSelectScreen(app, () => {
+        void loadMainMenu(app);
+      });
       return;
     }
 

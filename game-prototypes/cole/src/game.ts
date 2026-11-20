@@ -94,7 +94,10 @@ function setText(
   return text;
 }
 
-export async function startGameScreen(app: Application) {
+export async function startGameScreen(
+  app: Application,
+  onBackToSelect: () => void,
+) {
   let init_index = 0;
   let menu_flag = 0;
   let isAnimating = false;
@@ -143,6 +146,13 @@ export async function startGameScreen(app: Application) {
 
   // CREATE INSTRUCTION TEXT
   createText(app, "[ENTER]", "PixelFont", 16, 0.88 * WIDTH, 0.93 * HEIGHT, 0.7 * WIDTH);
+
+  const backButton = new Sprite(t_textbox2);
+  makeSprite(backButton, 0.02 * WIDTH, 0.89 * HEIGHT, 0.1 * WIDTH, 0.09 * HEIGHT);
+  app.stage.addChild(backButton);
+  backButton.eventMode = "static";
+  backButton.cursor = "pointer";
+  createText(app, "back", "PixelFont", 14, 0.07 * WIDTH, 0.935 * HEIGHT, 0.1 * WIDTH);
 
   // SET MENU SPRITE DIMENSIONS
   const black = new Graphics();
@@ -262,6 +272,15 @@ export async function startGameScreen(app: Application) {
   };
   window.addEventListener("keydown", handleKeyDown);
 
+  backButton.addEventListener("pointerdown", () => {
+    if (menu_flag !== 0) return;
+    window.removeEventListener("keydown", handleKeyDown);
+    if (typewriterInterval) clearInterval(typewriterInterval);
+    if (spriteAnimInterval) clearInterval(spriteAnimInterval);
+    app.stage.removeChildren();
+    onBackToSelect();
+  });
+
   // MENU ACTION LISTENERS
   function toggleMenu() {
     menu_flag = menu_flag === 0 ? 1 : 0;
@@ -296,7 +315,15 @@ export async function startGameScreen(app: Application) {
     if (menu_flag === 1) {
       window.removeEventListener("keydown", handleKeyDown);
       app.stage.removeChildren();
-      loadMainMenu(app);
+      loadMainMenu(app, onBackToSelect);
     }
   });
+}
+
+async function loadMainMenu(app: Application, onBackToSelect: () => void) {
+  const mainMenu = await createMainMenu(app, () => {
+    app.stage.removeChildren();
+    void startGameScreen(app, onBackToSelect);
+  });
+  app.stage.addChild(mainMenu);
 }
