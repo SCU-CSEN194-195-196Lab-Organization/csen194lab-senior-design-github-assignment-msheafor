@@ -1,5 +1,5 @@
 import { Application } from "pixi.js";
-import { mountDialogueScreen } from "./dialogueScreen.ts";
+import { createDialogueScreen } from "./dialogueScreen.ts";
 
 const app = new Application();
 
@@ -15,4 +15,4 @@ if (!container) {
 }
 
 container.appendChild(app.canvas);
-await mountDialogueScreen(app);
+app.stage.addChild(await createDialogueScreen(app));

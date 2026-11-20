@@ -1,7 +1,6 @@
 /**
  * Image paths for the dialogue scene.
- * Drop a PNG at the public path, or change the path here, and refresh.
- * Missing files fall back to labeled stand-ins.
+ * Replace a PNG at the public path and refresh.
  * Each suspect PNG is both the lineup portrait and the character in that dialogue.
  */
 export const sceneAssets = {
