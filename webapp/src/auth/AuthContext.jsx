@@ -1,5 +1,5 @@
 import { createContext, useContext, useEffect, useMemo, useState } from "react";
-import { GoogleAuthProvider, onAuthStateChanged, signInWithPopup, signOut } from "firebase/auth";
+import { GoogleAuthProvider, getRedirectResult, onAuthStateChanged, signInWithRedirect, signOut } from "firebase/auth";
 import { auth } from "../lib/firebase";
 import { ApiError, api, clearWebappIdTokenGetter, setWebappIdTokenGetter } from "../lib/api";
 
@@ -15,6 +15,8 @@ export function AuthProvider({ children }) {
   const [meError, setMeError] = useState(null);
 
   useEffect(() => {
+    getRedirectResult(auth).catch(() => {});
+
     const unsub = onAuthStateChanged(auth, (u) => {
       setUser(u);
       setLoading(false);
@@ -77,7 +79,7 @@ export function AuthProvider({ children }) {
       meError,
       signInWithGoogle: async () => {
         const provider = new GoogleAuthProvider();
-        await signInWithPopup(auth, provider);
+        await signInWithRedirect(auth, provider);
       },
       signOut: () => signOut(auth),
     }),
