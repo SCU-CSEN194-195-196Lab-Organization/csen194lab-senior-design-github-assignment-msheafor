@@ -87,10 +87,18 @@ async def run_coach(body: dict, meta: dict | None = None) -> dict:
     retrieved_sorted: list[dict] = []
 
     if coach_mode == "paused":
-        global_retrieved = retrieve_for_coaching(trimmed, RAG_TOP_K)
+        try:
+            global_retrieved = retrieve_for_coaching(trimmed, RAG_TOP_K)
+        except Exception as exc:
+            log.warning("[pipeline] RAG retrieval failed, continuing without knowledge base: %s", exc)
+            global_retrieved = []
 
         user_drafts = _filter_draft_history((store.get(user_id) or {}).get("drafts") or [], trimmed)
-        user_retrieved = retrieve_from_user_drafts(user_drafts, trimmed, top_k=2)
+        try:
+            user_retrieved = retrieve_from_user_drafts(user_drafts, trimmed, top_k=2)
+        except Exception as exc:
+            log.warning("[pipeline] user draft retrieval failed: %s", exc)
+            user_retrieved = []
 
         by_id: dict[str, dict] = {}
         for item in [*global_retrieved, *user_retrieved]:

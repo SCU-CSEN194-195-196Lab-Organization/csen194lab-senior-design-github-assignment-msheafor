@@ -7,13 +7,16 @@ from pinecone import Pinecone
 _index_name = os.environ.get("PINECONE_INDEX_NAME", "writing-coach")
 _pc: Pinecone | None = None
 _index = None
+_host: str | None = None
 
 
 def _get_index():
-    global _pc, _index
+    global _pc, _index, _host
     if _index is None:
         _pc = Pinecone(api_key=os.environ["PINECONE_API_KEY"])
         _index = _pc.Index(_index_name)
+        raw = _pc.describe_index(_index_name).host
+        _host = raw if raw.startswith("http") else f"https://{raw}"
     return _index
 
 
@@ -28,12 +31,13 @@ def upsert_chunks(
     metadatas: list[dict],
 ) -> None:
     idx = _get_index()
-    vectors = [
-        {"id": id_, "values": emb, "metadata": {**meta, "text": doc}}
+    namespace = os.environ.get("PINECONE_NAMESPACE", "default")
+    records = [
+        {"_id": id_, "_values": emb, "text": doc, **meta}
         for id_, emb, doc, meta in zip(ids, embeddings, documents, metadatas)
     ]
-    for i in range(0, len(vectors), 100):
-        idx.upsert(vectors=vectors[i : i + 100])
+    for i in range(0, len(records), 100):
+        idx.upsert_records(namespace=namespace, records=records[i : i + 100])
 
 
 def query_chunks(

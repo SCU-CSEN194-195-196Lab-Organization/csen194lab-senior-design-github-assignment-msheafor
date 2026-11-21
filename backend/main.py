@@ -2,14 +2,13 @@ from __future__ import annotations
 
 import logging
 import os
-from contextlib import asynccontextmanager
 from pathlib import Path
 
 from dotenv import load_dotenv
 
 load_dotenv(Path(__file__).parent / ".env")
 
-from fastapi import FastAPI
+from fastapi import FastAPI, Header, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 
 from rag.ingest import ensure_ingested
@@ -18,13 +17,7 @@ from routes import coach, dismissals, documents, feedback_history, onboarding, p
 logging.basicConfig(level=logging.INFO)
 
 
-@asynccontextmanager
-async def lifespan(app: FastAPI):
-    await ensure_ingested()
-    yield
-
-
-app = FastAPI(title="Write Up API", lifespan=lifespan)
+app = FastAPI(title="Write Up API")
 
 _raw_origins = os.environ.get("APP_CORS_ORIGINS", "").strip()
 _origins = [o.strip() for o in _raw_origins.split(",") if o.strip()] if _raw_origins else [
@@ -59,3 +52,12 @@ def root():
 def health():
     from coaching.mechanics_client import mechanics_health
     return {"ok": True, "service": "fastapi-api", **mechanics_health()}
+
+
+@app.post("/api/admin/ingest")
+async def admin_ingest(x_admin_secret: str = Header(default="")):
+    secret = os.environ.get("ADMIN_SECRET", "").strip()
+    if not secret or x_admin_secret != secret:
+        raise HTTPException(status_code=403, detail="Forbidden")
+    await ensure_ingested()
+    return {"ok": True}

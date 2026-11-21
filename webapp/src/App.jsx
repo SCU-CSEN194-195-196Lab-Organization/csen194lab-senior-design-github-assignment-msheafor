@@ -51,7 +51,7 @@ function TopbarAuth() {
 function TopNav() {
   const { user } = useAuth();
   return (
-    <nav class="topnavbar">
+    <nav className="topnavbar">
       <Link to="/">Home</Link>
       <Link to="/write">Write</Link>
       <Link to="/history">History</Link>

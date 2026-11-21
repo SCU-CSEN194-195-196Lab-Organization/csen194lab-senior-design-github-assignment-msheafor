@@ -14,7 +14,7 @@ _GROQ_BASE = "https://api.groq.com/openai/v1"
 _GROQ_MODEL = "llama-3.3-70b-versatile"
 _OPENAI_BASE = "https://api.openai.com/v1"
 _OPENAI_MODEL = "gpt-4o-mini"
-_LLM_TIMEOUT_S = 90.0
+_LLM_TIMEOUT_S = 8.0
 
 
 def resolve_llm_attempts() -> list[dict]:
