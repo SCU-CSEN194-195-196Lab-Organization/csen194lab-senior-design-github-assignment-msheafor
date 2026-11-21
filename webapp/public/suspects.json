@@ -1,0 +1,28 @@
+{
+  "suspects": [
+    {
+      "text": "I was just in the bakery waiting, to buy a loaf of bread. I come in every week ask anybody! I wasn’t even near the register when the money went missing.",
+      "remove": ["waiting"],
+      "add": [["week", "ask"]],
+      "oxford": [],
+      "lies": []
+    },
+    {
+      "text": "I’m throwing a party, tomorrow, so I was buying baked goods for my guests. I got a dozen cupcakes two dozen cookies and a chocolate cake. I paid the full amount, I promise!",
+      "remove": ["party"],
+      "add": [["cupcakes", "two"]],
+      "oxford": [["cookies", "and"]],
+      "lies": []
+    },
+    {
+      "text": "I don’t know why you’re questioning me. I’ve worked at the bakery for years. I took the money put all of it into the register went to grab the order and came back. It must have gotten stolen while my back was turned.",
+      "remove": [],
+      "add": [["money", "put"], ["register", "went"]],
+      "oxford": [["order", "and"]],
+      "lies": [
+        "put all of it into the register",
+        "while my back was turned."
+      ]
+    }
+  ]
+}

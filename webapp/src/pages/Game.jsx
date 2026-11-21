@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { Application } from "pixi.js";
-import { createDialogueScreen } from "../../../game-prototypes/catherine/src/dialogueScreen.ts";
+import { createDialogueScreen } from "../game/dialogueScreen.ts";
 
 export default function Game() {
   const hostRef = useRef(null);
