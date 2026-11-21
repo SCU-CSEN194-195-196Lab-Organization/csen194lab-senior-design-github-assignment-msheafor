@@ -20,6 +20,7 @@ export function AuthProvider({ children }) {
     });
 
     const unsub = onAuthStateChanged(auth, (u) => {
+      console.log("[Auth] onAuthStateChanged:", u ? u.email : "null");
       setUser(u);
       setLoading(false);
       if (u) {
