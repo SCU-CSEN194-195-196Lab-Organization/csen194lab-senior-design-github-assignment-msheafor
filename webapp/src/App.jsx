@@ -1,5 +1,4 @@
 ﻿import { BrowserRouter, Link, Route, Routes } from "react-router-dom";
-import { useGoogleLogin } from "@react-oauth/google";
 import { AuthProvider, useAuth } from "./auth/AuthContext";
 import Dashboard from "./pages/Dashboard";
 import History from "./pages/History";
@@ -15,16 +14,16 @@ function TopbarAuth() {
   if (loading) {
     return <span className="topbar-auth">Auth…</span>;
   }
-  const googleLogin = useGoogleLogin({
-    onSuccess: (response) => signInWithGoogle(response.access_token),
-    onError: (err) => console.error("[Auth] Google login failed:", err),
-    ux_mode: "redirect",
-    redirect_uri: window.location.origin,
-  });
+  const handleSignIn = () => {
+    const clientId = import.meta.env.VITE_GOOGLE_CLIENT_ID;
+    const redirectUri = encodeURIComponent(window.location.origin);
+    const scope = encodeURIComponent("email profile openid");
+    window.location.href = `https://accounts.google.com/o/oauth2/v2/auth?client_id=${clientId}&redirect_uri=${redirectUri}&response_type=token&scope=${scope}&prompt=select_account`;
+  };
 
   if (!user) {
     return (
-      <button type="button" className="topbar-auth-btn topbar-auth-btn--primary" onClick={() => googleLogin()}>
+      <button type="button" className="topbar-auth-btn topbar-auth-btn--primary" onClick={handleSignIn}>
         Sign in
       </button>
     );
