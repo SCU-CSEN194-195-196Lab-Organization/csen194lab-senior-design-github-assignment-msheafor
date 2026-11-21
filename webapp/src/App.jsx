@@ -18,6 +18,8 @@ function TopbarAuth() {
   const googleLogin = useGoogleLogin({
     onSuccess: (response) => signInWithGoogle(response.access_token),
     onError: (err) => console.error("[Auth] Google login failed:", err),
+    ux_mode: "redirect",
+    redirect_uri: window.location.origin,
   });
 
   if (!user) {
