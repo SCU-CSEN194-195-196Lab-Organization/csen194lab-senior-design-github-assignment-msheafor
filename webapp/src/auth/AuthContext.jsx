@@ -1,5 +1,5 @@
 import { createContext, useContext, useEffect, useMemo, useState } from "react";
-import { GoogleAuthProvider, getRedirectResult, onAuthStateChanged, signInWithRedirect, signOut } from "firebase/auth";
+import { GoogleAuthProvider, getRedirectResult, onAuthStateChanged, signInWithPopup, signInWithRedirect, signOut } from "firebase/auth";
 import { auth } from "../lib/firebase";
 import { ApiError, api, clearWebappIdTokenGetter, setWebappIdTokenGetter } from "../lib/api";
 
@@ -79,7 +79,15 @@ export function AuthProvider({ children }) {
       meError,
       signInWithGoogle: async () => {
         const provider = new GoogleAuthProvider();
-        await signInWithRedirect(auth, provider);
+        try {
+          await signInWithPopup(auth, provider);
+        } catch (err) {
+          if (err.code === "auth/popup-blocked") {
+            await signInWithRedirect(auth, provider);
+          } else {
+            throw err;
+          }
+        }
       },
       signOut: () => signOut(auth),
     }),
