@@ -43,7 +43,11 @@ async def proxy_coach(body: CoachBody, request: Request, user: CurrentUser = Dep
     payload["userId"] = user.uid
     payload["feedbackPreferences"] = feedback_prefs
 
-    result = await run_coach(payload, meta={"requestId": request_id})
+    try:
+        result = await run_coach(payload, meta={"requestId": request_id})
+    except Exception as exc:
+        log.error("run_coach unhandled error: %s", exc, exc_info=True)
+        return JSONResponse({"error": "internal_error"}, status_code=500)
     if result.get("error"):
         return JSONResponse({"error": result["error"]}, status_code=result.get("status", 400))
     return result.get("payload", {})

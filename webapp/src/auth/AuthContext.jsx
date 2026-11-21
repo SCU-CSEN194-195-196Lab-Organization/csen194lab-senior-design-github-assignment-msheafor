@@ -1,5 +1,5 @@
 import { createContext, useContext, useEffect, useMemo, useState } from "react";
-import { GoogleAuthProvider, onAuthStateChanged, signInWithPopup, signOut } from "firebase/auth";
+import { GoogleAuthProvider, onAuthStateChanged, signInWithCredential, signOut } from "firebase/auth";
 import { auth } from "../lib/firebase";
 import { ApiError, api, clearWebappIdTokenGetter, setWebappIdTokenGetter } from "../lib/api";
 
@@ -15,7 +15,22 @@ export function AuthProvider({ children }) {
   const [meError, setMeError] = useState(null);
 
   useEffect(() => {
+    // Handle Google OAuth redirect callback — token arrives in URL hash
+    const hash = window.location.hash;
+    if (hash.includes("access_token=")) {
+      const params = new URLSearchParams(hash.substring(1));
+      const accessToken = params.get("access_token");
+      if (accessToken) {
+        window.history.replaceState(null, "", window.location.pathname + window.location.search);
+        const credential = GoogleAuthProvider.credential(null, accessToken);
+        signInWithCredential(auth, credential).catch((err) => {
+          console.error("[Auth] signInWithCredential failed:", err?.code, err?.message);
+        });
+      }
+    }
+
     const unsub = onAuthStateChanged(auth, (u) => {
+      console.log("[Auth] onAuthStateChanged:", u ? u.email : "null");
       setUser(u);
       setLoading(false);
       if (u) {
@@ -75,9 +90,9 @@ export function AuthProvider({ children }) {
       serverProfile,
       meLoading,
       meError,
-      signInWithGoogle: async () => {
-        const provider = new GoogleAuthProvider();
-        await signInWithPopup(auth, provider);
+      signInWithGoogle: async (accessToken) => {
+        const credential = GoogleAuthProvider.credential(null, accessToken);
+        await signInWithCredential(auth, credential);
       },
       signOut: () => signOut(auth),
     }),

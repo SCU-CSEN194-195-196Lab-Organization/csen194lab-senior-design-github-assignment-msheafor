@@ -15,9 +15,16 @@ function TopbarAuth() {
   if (loading) {
     return <span className="topbar-auth">Auth…</span>;
   }
+  const handleSignIn = () => {
+    const clientId = import.meta.env.VITE_GOOGLE_CLIENT_ID;
+    const redirectUri = encodeURIComponent(window.location.origin);
+    const scope = encodeURIComponent("email profile openid");
+    window.location.href = `https://accounts.google.com/o/oauth2/v2/auth?client_id=${clientId}&redirect_uri=${redirectUri}&response_type=token&scope=${scope}&prompt=select_account`;
+  };
+
   if (!user) {
     return (
-      <button type="button" className="topbar-auth-btn topbar-auth-btn--primary" onClick={() => signInWithGoogle()}>
+      <button type="button" className="topbar-auth-btn topbar-auth-btn--primary" onClick={handleSignIn}>
         Sign in
       </button>
     );
@@ -52,7 +59,7 @@ function TopbarAuth() {
 function TopNav() {
   const { user } = useAuth();
   return (
-    <nav class="topnavbar">
+    <nav className="topnavbar">
       <Link to="/">Home</Link>
       <Link to="/write">Write</Link>
       <Link to="/history">History</Link>

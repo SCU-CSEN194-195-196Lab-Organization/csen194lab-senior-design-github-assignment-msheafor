@@ -82,5 +82,8 @@ async def ensure_ingested() -> None:
 
     log.info("Embedding %d knowledge chunks...", len(texts))
     embeddings = embed(texts)
-    upsert_chunks(ids=ids, embeddings=embeddings, documents=texts, metadatas=metadatas)
-    log.info("Ingested %d chunks into Pinecone from %s", len(chunks), KNOWLEDGE_DIR)
+    try:
+        upsert_chunks(ids=ids, embeddings=embeddings, documents=texts, metadatas=metadatas)
+        log.info("Ingested %d chunks into Pinecone from %s", len(chunks), KNOWLEDGE_DIR)
+    except Exception as exc:
+        log.error("Pinecone ingest failed — backend starting without knowledge base, coaching will be degraded: %s", exc)
