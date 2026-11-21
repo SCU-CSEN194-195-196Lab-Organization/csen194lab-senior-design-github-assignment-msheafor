@@ -80,18 +80,9 @@ export function AuthProvider({ children }) {
       serverProfile,
       meLoading,
       meError,
-      signInWithGoogle: async () => {
+      signInWithGoogle: () => {
         const provider = new GoogleAuthProvider();
-        try {
-          await signInWithPopup(auth, provider);
-        } catch (err) {
-          console.error("[Auth] signInWithPopup failed:", err?.code, err?.message);
-          if (err.code === "auth/popup-blocked") {
-            await signInWithRedirect(auth, provider);
-          } else {
-            throw err;
-          }
-        }
+        return signInWithRedirect(auth, provider);
       },
       signOut: () => signOut(auth),
     }),
