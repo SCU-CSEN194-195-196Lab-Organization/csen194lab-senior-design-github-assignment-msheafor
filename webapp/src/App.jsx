@@ -6,6 +6,7 @@ import Profile from "./pages/Profile";
 import ExtensionAuth from "./pages/ExtensionAuth";
 import PrivacyPolicy from "./pages/PrivacyPolicy";
 import Write from "./pages/Write";
+import Game from "./pages/Game";
 import logo from './icon.png';
 
 function TopbarAuth() {
@@ -57,6 +58,7 @@ function TopNav() {
       <Link to="/history">History</Link>
       <Link to="/profile">Profile</Link>
       <Link to="/privacy">Privacy</Link>
+      <Link to="/game">Game</Link>
       <TopbarAuth />
     </nav>
   );
@@ -78,6 +80,7 @@ export default function App() {
             <Route path="/history" element={<History />} />
             <Route path="/profile" element={<Profile />} />
             <Route path="/privacy" element={<PrivacyPolicy />} />
+            <Route path="/game" element={<Game />} />
           </Routes>
         </main>
       </BrowserRouter>
