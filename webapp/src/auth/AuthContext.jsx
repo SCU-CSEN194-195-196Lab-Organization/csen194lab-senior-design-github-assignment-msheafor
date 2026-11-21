@@ -15,7 +15,9 @@ export function AuthProvider({ children }) {
   const [meError, setMeError] = useState(null);
 
   useEffect(() => {
-    getRedirectResult(auth).catch(() => {});
+    getRedirectResult(auth).catch((err) => {
+      console.error("[Auth] getRedirectResult failed:", err?.code, err?.message);
+    });
 
     const unsub = onAuthStateChanged(auth, (u) => {
       setUser(u);
@@ -82,6 +84,7 @@ export function AuthProvider({ children }) {
         try {
           await signInWithPopup(auth, provider);
         } catch (err) {
+          console.error("[Auth] signInWithPopup failed:", err?.code, err?.message);
           if (err.code === "auth/popup-blocked") {
             await signInWithRedirect(auth, provider);
           } else {
